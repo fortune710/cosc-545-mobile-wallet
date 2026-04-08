@@ -10,6 +10,11 @@
       "source": "aj-geddes/useful-ai-prompts",
       "sourceType": "github",
       "computedHash": "e7fd822c9e40d192715e3e82e3dd3cb9152a554f1bf323bc9aedffa3801d5ba4"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "43ca6c197f8ec13055079da7053232d477068b03ca443f9ac1bc819b95cdd432"
     }
   }
 }
