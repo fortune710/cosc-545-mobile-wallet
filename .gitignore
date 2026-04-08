@@ -1,0 +1,17 @@
+.env
+.env.local
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/staticfiles/
+node_modules/
+frontend/dist/
