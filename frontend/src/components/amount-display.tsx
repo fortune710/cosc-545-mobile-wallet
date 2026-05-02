@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Pencil } from "lucide-react"
+import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 
@@ -12,7 +13,7 @@ interface AmountDisplayProps {
 export function AmountDisplay({
   amount,
   onAmountChange,
-  quickAmounts = [50, 75, 100, 125],
+  quickAmounts = [10, 20, 30, 50],
 }: AmountDisplayProps) {
   const [isEditingAmount, setIsEditingAmount] = useState(false)
   const [amountInput, setAmountInput] = useState(String(amount))
@@ -29,7 +30,13 @@ export function AmountDisplay({
   function commitAmount() {
     const parsed = Number(amountInput)
     if (!Number.isNaN(parsed) && parsed > 0) {
-      onAmountChange(parsed)
+      if (parsed > 50) {
+        toast.error("Maximum amount is $50")
+        setAmountInput("50")
+        onAmountChange(50)
+      } else {
+        onAmountChange(parsed)
+      }
     } else {
       setAmountInput(String(amount))
     }
@@ -37,8 +44,12 @@ export function AmountDisplay({
   }
 
   function applyQuickAmount(value: number) {
-    onAmountChange(value)
-    setAmountInput(String(value))
+    const clamped = Math.min(value, 50)
+    if (value > 50) {
+      toast.error("Maximum amount is $50")
+    }
+    onAmountChange(clamped)
+    setAmountInput(String(clamped))
     setIsEditingAmount(false)
   }
 

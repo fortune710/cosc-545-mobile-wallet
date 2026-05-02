@@ -139,11 +139,19 @@ function FundingPickerContent({
   )
 }
 
+/**
+ * Page component for users to add balance to their wallet, capped at $50 per transaction.
+ */
 export function AddBalancePage() {
-  const [amount, setAmount] = useState(50)
+  const MAX_AMOUNT = 50
+  const [amount, setAmount] = useState(MAX_AMOUNT)
   const [selectedSource, setSelectedSource] = useState<FundingOption | null>(null)
   const [mobilePickerOpen, setMobilePickerOpen] = useState(false)
   const [desktopPickerOpen, setDesktopPickerOpen] = useState(false)
+
+  const handleAmountChange = (value: number) => {
+    setAmount(Math.min(value, MAX_AMOUNT))
+  }
 
   const ctaLabel = useMemo(
     () =>
@@ -151,7 +159,7 @@ export function AddBalancePage() {
         style: "currency",
         currency: "USD",
         minimumFractionDigits: 2,
-      }).format(amount)} USD Now`,
+      }).format(Math.min(amount, MAX_AMOUNT))} USD Now`,
     [amount]
   )
 
@@ -179,7 +187,10 @@ export function AddBalancePage() {
         <span />
       </header>
 
-      <AmountDisplay amount={amount} onAmountChange={setAmount} />
+      <AmountDisplay 
+        amount={amount} 
+        onAmountChange={handleAmountChange} 
+      />
 
       <section className="mt-9">
         <div className="md:hidden">

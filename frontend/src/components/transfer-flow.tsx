@@ -20,9 +20,15 @@ const mockRecipients: Recipient[] = [
   { id: "r4", name: "Taylor Brooks", email: "taylor@example.com" },
 ]
 
-const quickAmounts = [25, 50, 100, 250]
+const quickAmounts = [10, 20, 30, 50]
 type Step = 1 | 2 | 3
 
+/**
+ * Formats a numeric value as USD currency string.
+ * @param value - The numeric amount to format
+ * @param withCents - Whether to always show 2 decimal places
+ * @returns Formatted currency string (e.g., "$50" or "$50.00")
+ */
 function formatAmount(value: number, withCents = false) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -32,15 +38,25 @@ function formatAmount(value: number, withCents = false) {
   }).format(value)
 }
 
+/**
+ * Multi-step transfer flow component for sending or requesting money.
+ * Guides user through recipient selection, amount entry, and confirmation.
+ * @param mode - Whether this is a "send" or "receive" (request) flow
+ */
 export function TransferFlow({
   mode,
 }: {
   mode: "send" | "receive"
 }) {
+  const MAX_AMOUNT = 50
   const [step, setStep] = useState<Step>(1)
   const [emailInput, setEmailInput] = useState("")
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null)
-  const [amount, setAmount] = useState(50)
+  const [amount, setAmount] = useState(MAX_AMOUNT)
+
+  const handleAmountChange = (value: number) => {
+    setAmount(Math.min(value, MAX_AMOUNT))
+  }
 
   const actionLabel = mode === "send" ? "Send" : "Request"
   const actionPast = mode === "send" ? "sent" : "requested"
@@ -89,7 +105,7 @@ export function TransferFlow({
     setStep(1)
     setSelectedRecipient(null)
     setEmailInput("")
-    setAmount(50)
+    setAmount(MAX_AMOUNT)
   }
 
   return (
@@ -115,7 +131,7 @@ export function TransferFlow({
               <p className="text-[16px] font-medium text-zinc-500">Amount</p>
               <AmountDisplay 
                 amount={amount} 
-                onAmountChange={setAmount} 
+                onAmountChange={handleAmountChange} 
                 quickAmounts={quickAmounts} 
               />
             </div>
