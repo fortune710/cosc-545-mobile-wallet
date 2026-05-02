@@ -11,5 +11,7 @@
 
 5. Whenever you create or edit UI, use the `vercel-react-best-practices` and the `web-design-guidelines` agent skills to ensure that the UI and UX follow best practices for perfect Lighthouse scores.
 
+6. DO NOT update the agent skills, they are there for reference only.
+
 ### Domain Knowledge
 1. This project is a mobile wallet application that allows users to send and recieve micro-payments. All amounts are in USD and should be capped at $50.
