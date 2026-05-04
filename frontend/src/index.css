@@ -94,7 +94,8 @@
 
   --sidebar-border: oklch(0.92 0.004 286.32);
 
-  --sidebar-ring: oklch(0.705 0.015 286.067)}
+  --sidebar-ring: oklch(0.705 0.015 286.067)
+}
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -135,12 +136,12 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
+  font-size: 48px;
   letter-spacing: -1.68px;
   margin: 32px 0;
 
   @media (max-width: 1024px) {
-    font-size: 36px;
+    font-size: 32px;
     margin: 20px 0;
   }
 }
@@ -254,8 +255,14 @@ code {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;}
+    @apply border-border outline-ring/50;
+  }
+
   body {
-    @apply bg-background text-foreground;}
+    @apply bg-background text-foreground;
+  }
+
   html {
-    @apply font-sans;}}
+    @apply font-sans;
+  }
+}
