@@ -13,5 +13,7 @@
 
 6. DO NOT update the agent skills, they are there for reference only.
 
+7. Every type or interface you create MUST be in `src/lib/types.ts`.
+
 ### Domain Knowledge
 1. This project is a mobile wallet application that allows users to send and recieve micro-payments. All amounts are in USD and should be capped at $50.
