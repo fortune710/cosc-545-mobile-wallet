@@ -9,16 +9,18 @@ import {
 import { TabBar } from "@/components/tab-bar"
 import { Toaster } from "@/components/ui/sonner"
 import { AddBalancePage } from "@/pages/add-balance"
-import { CardsPage } from "@/pages/cards"
-import { ForYouPage } from "@/pages/for-you"
+import { MorePage } from "@/pages/more"
+import { RecipientsPage } from "@/pages/recipients"
+import { NotificationsPage } from "@/pages/notifications"
 import { HistoryPage } from "@/pages/history"
 import { HomePage } from "@/pages/home"
 import { ReceivePage } from "@/pages/receive"
 import { SendPage } from "@/pages/send"
+import { TransactionsPage } from "@/pages/transactions"
 
 function AppShell() {
   const { pathname } = useLocation()
-  const hideTabBar = ["/add-balance", "/send", "/receive"].includes(pathname)
+  const hideTabBar = ["/add-balance", "/send", "/receive", "/notifications", "/history"].includes(pathname)
 
   return (
     <div className="min-h-svh bg-white text-zinc-950">
@@ -29,8 +31,10 @@ function AppShell() {
         <Route path="/send" element={<SendPage />} />
         <Route path="/receive" element={<ReceivePage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="/for-you" element={<ForYouPage />} />
-        <Route path="/cards" element={<CardsPage />} />
+        <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/recipients" element={<RecipientsPage />} />
+        <Route path="/more" element={<MorePage />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
 
