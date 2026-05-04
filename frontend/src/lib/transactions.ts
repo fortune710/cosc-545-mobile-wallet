@@ -1,15 +1,4 @@
-export type TransactionType = "sent" | "received" | "fee"
-export type TransactionStatus = "pending" | "completed" | "failed"
-
-export type Transaction = {
-  id: string
-  dateTimeUtc: string
-  type: TransactionType
-  counterpartyDisplayName: string
-  amount: number
-  memo?: string
-  status: TransactionStatus
-}
+import type { Transaction } from "@/lib/types"
 
 export const mockTransactions: Transaction[] = [
   {
