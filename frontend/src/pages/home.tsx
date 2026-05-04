@@ -1,5 +1,5 @@
 import {
-  MessageCircle,
+  Bell,
   PlusCircle,
   Send,
   Wallet,
@@ -10,6 +10,7 @@ import { Link } from "react-router-dom"
 
 import { TransactionListItem } from "@/components/transaction-list-item"
 import { mockTransactions } from "@/lib/transactions"
+import { useNotifications } from "@/hooks/use-notifications"
 
 function ActionButton({
   icon,
@@ -84,6 +85,8 @@ function TransactionsPanel() {
 }
 
 export function HomePage() {
+  const { unreadCount } = useNotifications()
+
   return (
     <main className="mx-auto w-full max-w-[920px] box-border px-4 pt-10 sm:px-5 md:px-8 md:pt-12">
       <div className="grid gap-10 md:grid-cols-2 md:gap-14">
@@ -100,13 +103,16 @@ export function HomePage() {
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              className="grid size-11 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 active:scale-[0.98]"
-              aria-label="Messages"
+            <Link
+              to="/notifications"
+              className="relative grid size-12 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 active:scale-[0.98] transition-colors"
+              aria-label="Notifications"
             >
-              <MessageCircle className="size-6" aria-hidden="true" />
-            </button>
+              <Bell className="size-6" aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2.5 right-2.5 size-2.5 rounded-full bg-primary border-2 border-white dark:border-zinc-950" />
+              )}
+            </Link>
           </header>
 
           <div className="mt-14 text-center md:mt-16">
