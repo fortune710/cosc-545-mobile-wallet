@@ -1,7 +1,9 @@
 from datetime import timedelta
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SRC_DIR = BASE_DIR / "src"
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
     "core",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -78,7 +81,11 @@ DATABASES = {
         "USER": os.getenv("POSTGRES_USER", "wallet"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", "wallet"),
         "HOST": os.getenv("POSTGRES_HOST", "db"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "PORT": int(os.getenv("POSTGRES_PORT", "5432")),
+        "OPTIONS": {
+            "sslmode": os.getenv("POSTGRES_SSLMODE", "require" if os.getenv("POSTGRES_HOST") not in ['localhost', 'db'] else "disable"),
+            "channel_binding": os.getenv("POSTGRES_CHANNEL_BINDING", "require" if os.getenv("POSTGRES_HOST") not in ['localhost', 'db'] else "disable"),
+        },
     }
 }
 
