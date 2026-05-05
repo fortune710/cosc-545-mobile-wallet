@@ -4,7 +4,7 @@ import {
   ReceiptText,
 } from "lucide-react"
 
-import type { Transaction } from "@/lib/transactions"
+import type { Transaction } from "@/lib/types"
 
 function formatAmount(amount: number) {
   return new Intl.NumberFormat("en-US", {
