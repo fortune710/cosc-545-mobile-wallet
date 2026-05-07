@@ -1,3 +1,4 @@
+
 from rest_framework import serializers
 from .models import Notification, Recipient
 from accounts.serializers import UserSerializer
@@ -18,15 +19,16 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class RecipientSerializer(serializers.ModelSerializer):
-    recipient_details = UserSerializer(source="recipient", read_only=True)
+    display_name = serializers.CharField(source="recipient.display_name", read_only=True)
+    email = serializers.EmailField(source="recipient.email", read_only=True)
 
     class Meta:
         model = Recipient
         fields = [
             "id",
             "user",
-            "recipient",
-            "recipient_details",
+            "display_name",
+            "email",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at", "recipient_details"]
+        read_only_fields = ["id", "created_at", "display_name", "email"]
