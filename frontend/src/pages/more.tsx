@@ -10,8 +10,16 @@ import {
 } from "lucide-react"
 import { X } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { SignOutConfirmation } from "@/components/auth/sign-out-confirmation"
+
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function MorePage() {
+  const { user, loading } = useCurrentUser()
+  const fullName = user ? `${user.firstName} ${user.lastName}` : "User"
+  const initials = user ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase() : "U"
+
   return (
     <main className="mx-auto w-full max-w-[920px] pb-28 md:px-10 md:pt-12 md:pb-10 pt-4">
       <header className="relative px-4 sm:px-6 flex items-center justify-start pt-2">
@@ -27,19 +35,32 @@ export function MorePage() {
 
         {/* Profile Card */}
         <div className="group flex items-center gap-4 py-4 mb-4 active:scale-[0.98] transition-all cursor-pointer rounded-2xl px-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-          <Avatar className="size-[60px] shadow-sm">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="Profile avatar" />
-            <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
-              A
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col flex-1">
-            <span className="text-[20px] font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
-              Alex Rivers
-            </span>
-            <span className="text-[15px] text-zinc-400 font-medium group-hover:text-zinc-500 transition-colors flex items-center gap-0.5">
-              Edit Profile <ChevronRight className="size-4" />
-            </span>
+          {loading ? (
+            <Skeleton className="size-[60px] rounded-full" />
+          ) : (
+            <Avatar className="size-[60px] shadow-sm">
+              <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${fullName}`} alt="Profile avatar" />
+              <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          <div className="flex flex-col flex-1 gap-1">
+            {loading ? (
+              <>
+                <Skeleton className="h-7 w-32 rounded-md" />
+                <Skeleton className="h-5 w-24 rounded-md" />
+              </>
+            ) : (
+              <>
+                <span className="text-[20px] font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
+                  {fullName}
+                </span>
+                <span className="text-[15px] text-zinc-400 font-medium group-hover:text-zinc-500 transition-colors flex items-center gap-0.5">
+                  Edit Profile <ChevronRight className="size-4" />
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -98,12 +119,14 @@ export function MorePage() {
 
         <section className="mb-10">
           <div className="bg-white dark:bg-zinc-900/50 rounded-none sm:rounded-2xl">
-            <div className="flex items-center py-3 px-2 cursor-pointer group active:scale-[0.98] transition-transform">
-              <div className="flex items-center gap-3.5">
-                <LogOut className="size-[22px] text-zinc-400 group-active:text-zinc-600" strokeWidth={1.5} />
-                <span className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100 group-active:text-zinc-500">Sign Out</span>
+            <SignOutConfirmation>
+              <div className="flex items-center py-3 px-2 cursor-pointer group active:scale-[0.98] transition-transform">
+                <div className="flex items-center gap-3.5">
+                  <LogOut className="size-[22px] text-zinc-400 group-active:text-zinc-600" strokeWidth={1.5} />
+                  <span className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100 group-active:text-zinc-500">Sign Out</span>
+                </div>
               </div>
-            </div>
+            </SignOutConfirmation>
           </div>
         </section>
 
