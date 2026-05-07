@@ -138,3 +138,24 @@ class AuthTokenSerializer(TokenObtainPairSerializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class BalanceIncrementSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=1)
+
+
+class BalanceResponseSerializer(serializers.Serializer):
+    balance = serializers.IntegerField(read_only=True)
+
+
+class PinSetSerializer(serializers.Serializer):
+    pin = serializers.CharField(min_length=4, max_length=4)
+
+    def validate_pin(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("PIN must be exactly 4 digits.")
+        return value
+
+
+class PinCheckSerializer(serializers.Serializer):
+    pin = serializers.CharField()

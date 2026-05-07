@@ -29,6 +29,8 @@ class User(BaseModel, AbstractUser):
     mfa_enabled = models.BooleanField(default=False)
     mfa_locked_until = models.DateTimeField(null=True, blank=True)
     failed_mfa_attempts = models.PositiveSmallIntegerField(default=0)
+    balance = models.BigIntegerField(default=0)
+    pin = models.CharField(max_length=128, blank=True, null=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
