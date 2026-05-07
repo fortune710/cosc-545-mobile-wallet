@@ -42,11 +42,12 @@ class RecipientViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        recipient_id = instance.id
+        instance.delete()
         log_event(
             RecipientEvent.RECIPIENT_REMOVED, 
             "SUCCESS", 
             user=self.request.user, 
             request=self.request,
-            metadata={"recipient_id": instance.id}
+            metadata={"recipient_id": recipient_id}
         )
-        instance.delete()
