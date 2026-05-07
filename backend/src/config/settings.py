@@ -12,6 +12,8 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("DJANGO_SECRET_KEY environment variable must be set")
 
+AUDIT_HMAC_SECRET = os.getenv("AUDIT_HMAC_SECRET")
+
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
@@ -43,6 +45,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "core",
     "notifications",
+    "audit",
 ]
 
 MIDDLEWARE = [

@@ -3,6 +3,7 @@ import { Pencil } from "lucide-react"
 import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
+import { config } from "@/lib/app-config"
 
 interface AmountDisplayProps {
   amount: number
@@ -30,10 +31,11 @@ export function AmountDisplay({
   function commitAmount() {
     const parsed = Number(amountInput)
     if (!Number.isNaN(parsed) && parsed > 0) {
-      if (parsed > 50) {
-        toast.error("Maximum amount is $50")
-        setAmountInput("50")
-        onAmountChange(50)
+      if (parsed > config.maxPaymentAmount) {
+        toast.error(`Maximum amount is $${config.maxPaymentAmount}`)
+        setAmountInput(String(config.maxPaymentAmount))
+        // Keep editing mode open so user can correct
+        return
       } else {
         onAmountChange(parsed)
       }
@@ -44,12 +46,13 @@ export function AmountDisplay({
   }
 
   function applyQuickAmount(value: number) {
-    const clamped = Math.min(value, 50)
     if (value > 50) {
       toast.error("Maximum amount is $50")
+      // Don't update amount if it's over the limit
+      return
     }
-    onAmountChange(clamped)
-    setAmountInput(String(clamped))
+    onAmountChange(value)
+    setAmountInput(String(value))
     setIsEditingAmount(false)
   }
 
