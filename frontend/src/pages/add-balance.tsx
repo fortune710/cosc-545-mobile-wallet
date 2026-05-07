@@ -9,6 +9,8 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
+import { config } from "@/lib/app-config"
+import type { FundingOption } from "@/lib/types"
 import { AmountDisplay } from "@/components/amount-display"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,13 +30,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 
-type FundingOption = {
-  id: string
-  label: string
-  detail?: string
-  speedLabel: "In seconds" | "In 3 to 5 days"
-  icon: "card" | "bank" | "add-bank"
-}
+
 
 const fundingOptions: FundingOption[] = [
   {
@@ -140,10 +136,10 @@ function FundingPickerContent({
 }
 
 /**
- * Page component for users to add balance to their wallet, capped at $50 per transaction.
+ * Page component for users to add balance to their wallet, capped at the configured max per transaction.
  */
 export function AddBalancePage() {
-  const MAX_AMOUNT = 50
+  const MAX_AMOUNT = config.maxPaymentAmount
   const [amount, setAmount] = useState(MAX_AMOUNT)
   const [selectedSource, setSelectedSource] = useState<FundingOption | null>(null)
   const [mobilePickerOpen, setMobilePickerOpen] = useState(false)

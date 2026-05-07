@@ -3,7 +3,6 @@ import {
   PlusCircle,
   Send,
   Wallet,
-  User,
 } from "lucide-react"
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
@@ -11,6 +10,10 @@ import { Link } from "react-router-dom"
 import { TransactionListItem } from "@/components/transaction-list-item"
 import { mockTransactions } from "@/lib/transactions"
 import { useNotifications } from "@/hooks/use-notifications"
+
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 function ActionButton({
   icon,
@@ -39,9 +42,9 @@ function ActionButton({
       type="button"
       className="group flex flex-col items-center gap-3 text-center"
     >
-        <span className="grid size-16 place-items-center rounded-full bg-primary/15 text-primary transition-all group-hover:bg-primary/25 group-hover:scale-105 group-active:scale-95">
-          {icon}
-        </span>
+      <span className="grid size-16 place-items-center rounded-full bg-primary/15 text-primary transition-all group-hover:bg-primary/25 group-hover:scale-105 group-active:scale-95">
+        {icon}
+      </span>
       <span className="max-w-[10ch] text-[15px] font-semibold leading-[1.15] tracking-[-0.01em] text-zinc-900">
         {label}
       </span>
@@ -86,6 +89,7 @@ function TransactionsPanel() {
 
 export function HomePage() {
   const { unreadCount } = useNotifications()
+  const { user, loading } = useCurrentUser()
 
   return (
     <main className="mx-auto w-full max-w-[920px] box-border px-4 pt-10 sm:px-5 md:px-8 md:pt-12">
@@ -93,13 +97,20 @@ export function HomePage() {
         <section>
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="grid size-12 place-items-center rounded-full ring-2 ring-lime-300/70">
-                <User className="size-6 text-zinc-700" aria-hidden="true" />
-              </div>
+              <Avatar className="size-12">
+                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.firstName} ${user?.lastName}`} alt="Profile avatar" />
+                <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+                  {user?.firstName[0]}{user?.lastName[0]}
+                </AvatarFallback>
+              </Avatar>
               <div className="text-left">
-                <div className="text-[22px] font-medium tracking-[-0.02em] text-zinc-950">
+                <div className="text-[22px] font-medium tracking-[-0.02em] text-zinc-950 flex items-center">
                   Hi,
-                  <span className="ml-1 font-semibold">Alex</span>
+                  {loading ? (
+                    <Skeleton className="ml-2 h-7 w-20 rounded-md" />
+                  ) : (
+                    <span className="ml-1 font-semibold">{user?.firstName || "there"}</span>
+                  )}
                 </div>
               </div>
             </div>

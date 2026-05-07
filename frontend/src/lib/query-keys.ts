@@ -1,3 +1,3 @@
 export const queryKeys = {
-    //Query Keys defined here
+    currentUser: ['currentUser'] as const,
 } as const;

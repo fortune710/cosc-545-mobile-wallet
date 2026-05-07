@@ -1,20 +1,18 @@
-import { useState, useEffect } from "react"
-import { mockRecipients } from "@/lib/recipients"
+import { useQuery } from "@tanstack/react-query"
+import { recipientsService } from "@/services/recipients-service"
 import type { Recipient } from "@/lib/types"
 
 export function useRecipients() {
-  const [recipients, setRecipients] = useState<Recipient[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const query = useQuery<{ results: Recipient[], count: number }, Error>({
+    queryKey: ['recipients'],
+    queryFn: () => recipientsService.getRecipients(),
+  })
 
-  useEffect(() => {
-    // Simulate API fetch
-    const timer = setTimeout(() => {
-      setRecipients(mockRecipients)
-      setIsLoading(false)
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  return { recipients, isLoading }
+  return {
+    recipients: query.data?.results ?? [],
+    count: query.data?.count ?? 0,
+    isLoading: query.isLoading,
+    error: query.error,
+    refreshRecipients: query.refetch
+  }
 }

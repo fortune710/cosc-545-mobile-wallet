@@ -16,9 +16,9 @@ export function RecipientListItem({ recipient, onClick }: RecipientListItemProps
       <div className="relative">
         <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-primary/20 to-primary/5 opacity-0 transition-opacity group-hover:opacity-100" />
         <Avatar className="size-12 border-2 border-white shadow-sm dark:border-zinc-900">
-          <AvatarImage src={recipient.avatarUrl} alt={recipient.name} />
+          <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${recipient.displayName}`} alt={recipient.displayName} />
           <AvatarFallback className="bg-primary/10 text-primary font-medium">
-            {recipient.name.charAt(0)}
+            {recipient.displayName.charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-green-500 shadow-sm dark:border-zinc-900" />
@@ -26,22 +26,15 @@ export function RecipientListItem({ recipient, onClick }: RecipientListItemProps
       
       <div className="flex flex-1 flex-col items-start gap-0.5">
         <span className="text-[15px] font-semibold text-zinc-900 transition-colors group-hover:text-primary dark:text-zinc-50 dark:group-hover:text-primary">
-          {recipient.name}
+          {recipient.displayName}
         </span>
         <span className="text-[13px] text-zinc-500 dark:text-zinc-400">
-          {recipient.handle}
+          {recipient.email}
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
-        {recipient.lastPaidAt && (
-          <span className="hidden text-[11px] font-medium uppercase tracking-wider text-zinc-400 sm:block">
-            Last paid
-          </span>
-        )}
-        <div className="flex size-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 transition-all group-hover:bg-primary group-hover:text-white group-hover:shadow-lg group-hover:shadow-primary/30 dark:bg-zinc-800">
-          <ChevronRight className="size-4" />
-        </div>
+      <div className="flex items-center gap-3 pr-1">
+        <ChevronRight className="size-[20px] text-zinc-300 transition-colors group-hover:text-zinc-400 dark:text-zinc-600 dark:group-hover:text-zinc-500" strokeWidth={2} />
       </div>
     </button>
   )

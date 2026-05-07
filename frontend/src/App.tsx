@@ -5,6 +5,7 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { TabBar } from "@/components/tab-bar"
 import { Toaster } from "@/components/ui/sonner"
@@ -17,15 +18,21 @@ import { HomePage } from "@/pages/home"
 import { ReceivePage } from "@/pages/receive"
 import { SendPage } from "@/pages/send"
 import { TransactionsPage } from "@/pages/transactions"
+import { LoginPage } from "@/pages/login"
+import { SignUpPage } from "@/pages/signup"
+
+const queryClient = new QueryClient()
 
 function AppShell() {
   const { pathname } = useLocation()
-  const hideTabBar = ["/add-balance", "/send", "/receive", "/notifications", "/history"].includes(pathname)
+  const hideTabBar = ["/login", "/signup", "/add-balance", "/send", "/receive", "/notifications", "/history"].includes(pathname)
 
   return (
     <div className="min-h-svh bg-white text-zinc-950">
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/add-balance" element={<AddBalancePage />} />
         <Route path="/send" element={<SendPage />} />
@@ -46,8 +53,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppShell />
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }

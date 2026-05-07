@@ -2,8 +2,16 @@ import { Plus, Search, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { useRecipients } from "@/hooks/use-recipients"
 import { RecipientListItem } from "@/components/recipient-list-item"
-import { Input } from "@/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Button } from "@/components/ui/button"
+import { 
+  Empty, 
+  EmptyHeader, 
+  EmptyTitle, 
+  EmptyDescription, 
+  EmptyMedia, 
+  EmptyContent 
+} from "@/components/ui/empty"
 
 export function RecipientsPage() {
   const { recipients, isLoading } = useRecipients()
@@ -11,13 +19,13 @@ export function RecipientsPage() {
 
   const filteredRecipients = recipients.filter(
     (r) =>
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.handle.toLowerCase().includes(searchQuery.toLowerCase())
+      r.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
-    <main className="mx-auto w-full max-w-[920px] px-6 pt-10 pb-28 md:px-10 md:pt-12 md:pb-10">
-      <div className="flex flex-col gap-10">
+    <main className="mx-auto w-full max-w-[920px] px-4 pt-8 pb-28 md:px-6 md:pt-10 md:pb-10">
+      <div className="flex flex-col gap-6">
         {/* Header Section */}
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
@@ -39,22 +47,24 @@ export function RecipientsPage() {
           </Button>
         </div>
 
-        {/* Search Bar with Liquid Glass Effect */}
-        <div className="relative group">
-          <div className="absolute -inset-1 rounded-[22px] bg-gradient-to-r from-primary/20 via-primary/5 to-primary/20 opacity-0 blur-xl transition-opacity group-focus-within:opacity-100" />
-          <div className="relative flex items-center">
-            <Search className="absolute left-4 size-4 text-zinc-400" />
-            <Input
-              placeholder="Search name or handle..."
-              className="h-14 rounded-2xl border-none bg-zinc-100/80 pl-11 text-[16px] backdrop-blur-sm transition-all focus-visible:bg-white focus-visible:ring-primary/20 dark:bg-zinc-900/80 dark:focus-visible:bg-zinc-900"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
+        {/* Search Bar */}
+        <InputGroup className="h-14 overflow-hidden rounded-[22px] bg-zinc-100/80 backdrop-blur-sm transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20 dark:bg-zinc-900/80 dark:focus-within:bg-zinc-900 border-none shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+          <InputGroupInput 
+            placeholder="Search name or handle..." 
+            className="text-[16px] placeholder:text-zinc-400 font-medium pl-4 h-full"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <InputGroupAddon>
+            <Search className="text-zinc-400 size-5" strokeWidth={2.5} />
+          </InputGroupAddon>
+          <InputGroupAddon align="inline-end" className="text-[14px] text-zinc-400 font-medium pr-5">
+            {filteredRecipients.length} results
+          </InputGroupAddon>
+        </InputGroup>
 
         {/* Recipients List */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
           {isLoading ? (
             <div className="flex flex-col gap-4 py-8">
               {[1, 2, 3, 4].map((i) => (
@@ -70,25 +80,33 @@ export function RecipientsPage() {
               />
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="group relative mb-6">
-                <div className="absolute -inset-4 animate-pulse rounded-full bg-primary/10 blur-2xl" />
-                <div className="relative flex size-20 items-center justify-center rounded-full bg-zinc-50 border border-white text-zinc-300 shadow-sm dark:bg-zinc-900 dark:border-zinc-800">
-                  <Search className="size-10 transition-transform group-hover:scale-110" />
-                </div>
-              </div>
-              <h3 className="text-[19px] font-bold text-zinc-900 dark:text-zinc-50">Empty search results</h3>
-              <p className="mt-2 max-w-[280px] text-[15px] leading-relaxed text-zinc-500">
-                We couldn't find any recipients matching <span className="font-semibold text-zinc-900 dark:text-zinc-200">"{searchQuery}"</span>.
-              </p>
-              <Button 
-                variant="outline" 
-                className="mt-8 rounded-full border-zinc-200 px-6 py-5 dark:border-zinc-800"
-                onClick={() => setSearchQuery("")}
-              >
-                Clear search
-              </Button>
-            </div>
+            <Empty className="h-[400px]">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Search className="size-4" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {searchQuery ? "No matching recipients" : "No recipients added yet"}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {searchQuery 
+                    ? `We couldn't find anyone matching "${searchQuery}"`
+                    : "Add people you send money to often for quicker access."}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                {searchQuery ? (
+                  <Button variant="outline" className="rounded-full" onClick={() => setSearchQuery("")}>
+                    Clear search
+                  </Button>
+                ) : (
+                  <Button className="rounded-full gap-2" onClick={() => console.log("Add recipient")}>
+                    <UserPlus className="size-4" />
+                    Add Recipient
+                  </Button>
+                )}
+              </EmptyContent>
+            </Empty>
           )}
         </div>
       </div>

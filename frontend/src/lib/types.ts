@@ -1,3 +1,6 @@
+import { z } from "zod"
+import { signInSchema, signUpSchema } from "./schemas/auth"
+
 export type TransactionType = "sent" | "received" | "fee"
 export type TransactionStatus = "pending" | "completed" | "failed"
 
@@ -13,10 +16,9 @@ export type Transaction = {
 
 export type Recipient = {
   id: string
-  name: string
-  handle: string
-  avatarUrl?: string
-  lastPaidAt?: string
+  displayName: string
+  email: string
+  createdAt: string
 }
 
 export type Filters = {
@@ -37,4 +39,33 @@ export type NotificationItem = {
   createdAt: string
   isRead?: boolean // This will be calculated on the client
   actionUrl?: string
+}
+
+export type SignInValues = z.infer<typeof signInSchema>
+export type SignUpValues = z.infer<typeof signUpSchema>
+
+export type TransferRecipient = {
+  id: string
+  name: string
+  email: string
+}
+
+export type TransferStep = 1 | 2 | 3
+
+export type FundingOption = {
+  id: string
+  label: string
+  detail?: string
+  speedLabel: "In seconds" | "In 3 to 5 days"
+  icon: "card" | "bank" | "add-bank"
+}
+
+export type AuthUser = {
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export interface SignOutConfirmationProps {
+  children: React.ReactNode
 }
