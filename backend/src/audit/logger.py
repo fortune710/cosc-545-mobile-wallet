@@ -32,7 +32,9 @@ def log_event(
     metadata = metadata or {}
 
     # actor_id is the string representation of user.id to persist past deletion
-    actor_id = str(user.id) if user else metadata.get('email', 'anonymous')
+    # We fallback to email or 'anonymous' if user is not available
+    raw_actor_id = str(user.id) if user else str(metadata.get('email') or 'anonymous')
+    actor_id = raw_actor_id[:50]
 
     event = AuditEvent(
         user=user,

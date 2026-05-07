@@ -21,10 +21,18 @@ from accounts.serializers import (
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction
 from django.db.models import F
+from rest_framework.exceptions import ValidationError, AuthenticationFailed
+from django.contrib.auth import get_user_model
 from audit.logger import log_event
 from audit.events import AccountEvent, WalletEvent
-from rest_framework.exceptions import ValidationError
-from django.contrib.auth import get_user_model
+from pydantic import ValidationError as PydanticValidationError
+from accounts.schemas import (
+    RegisterRequest,
+    LogoutRequest,
+    BalanceIncrementRequest,
+    PinSetRequest,
+    PinCheckRequest,
+)
 
 User = get_user_model()
 
@@ -37,7 +45,18 @@ class RegisterView(GenericAPIView):
         responses={status.HTTP_202_ACCEPTED: RegisterResponseSerializer},
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        try:
+            pydantic_data = RegisterRequest(**request.data)
+        except PydanticValidationError as e:
+            log_event(
+                AccountEvent.REGISTER_FAILED, 
+                "FAILED", 
+                request=request, 
+                metadata={"email": request.data.get("email"), "error": str(e)}
+            )
+            raise ValidationError(e.errors())
+
+        serializer = self.get_serializer(data=pydantic_data.model_dump())
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         log_event(AccountEvent.REGISTER, "SUCCESS", user=user, request=request)
@@ -59,12 +78,17 @@ class LoginView(TokenObtainPairView):
 
     def post(self, request, *args, **kwargs):
         try:
-            response = super().post(request, *args, **kwargs)
-            user = User.objects.filter(email=request.data.get("email")).first()
-            if user:
-                log_event(AccountEvent.LOGIN, "SUCCESS", user=user, request=request)
-            return response
-        except ValidationError as e:
+            # SimpleJWT serializer handles authentication and token generation
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Extract user from serializer to avoid redundant DB lookup
+            user = serializer.user
+            log_event(AccountEvent.LOGIN, "SUCCESS", user=user, request=request)
+            
+            return Response(serializer.validated_data, status=status.HTTP_200_OK)
+            
+        except (ValidationError, AuthenticationFailed) as e:
             log_event(
                 AccountEvent.LOGIN_FAILED, 
                 "FAILED", 
@@ -91,7 +115,12 @@ class LogoutView(APIView):
 
     @extend_schema(request=LogoutSerializer, responses={status.HTTP_205_RESET_CONTENT: None})
     def post(self, request, *args, **kwargs):
-        serializer = LogoutSerializer(data=request.data)
+        try:
+            pydantic_data = LogoutRequest(**request.data)
+        except PydanticValidationError as e:
+            raise ValidationError(e.errors())
+
+        serializer = LogoutSerializer(data=pydantic_data.model_dump())
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -113,17 +142,18 @@ class BalanceView(APIView):
     @extend_schema(responses={status.HTTP_200_OK: BalanceResponseSerializer})
     def get(self, request, *args, **kwargs):
         serializer = BalanceResponseSerializer({"balance": request.user.balance})
-        log_audit = request.query_params.get("audit", "false").lower() == "true"
-        if log_audit:
-            log_event(WalletEvent.BALANCE_VIEWED, "SUCCESS", user=request.user, request=request)
+        # Always log balance views as per guidelines
+        log_event(WalletEvent.BALANCE_VIEWED, "SUCCESS", user=request.user, request=request)
         return Response(serializer.data)
 
     @extend_schema(request=BalanceIncrementSerializer, responses={status.HTTP_200_OK: BalanceResponseSerializer})
     def post(self, request, *args, **kwargs):
-        serializer = BalanceIncrementSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            pydantic_data = BalanceIncrementRequest(**request.data)
+        except PydanticValidationError as e:
+            raise ValidationError(e.errors())
 
-        amount = serializer.validated_data["amount"]
+        amount = pydantic_data.amount
         user = request.user
 
         with transaction.atomic():
@@ -134,13 +164,14 @@ class BalanceView(APIView):
             # reload since F expressions don't evaluate locally
             locked_user.refresh_from_db(fields=['balance'])
 
-        log_event(
-            WalletEvent.BALANCE_CREDITED, 
-            "SUCCESS", 
-            user=user, 
-            request=request, 
-            metadata={"amount": amount, "new_balance": locked_user.balance}
-        )
+            # Log audit trail inside the transaction to ensure atomic results
+            log_event(
+                WalletEvent.BALANCE_CREDITED, 
+                "SUCCESS", 
+                user=user, 
+                request=request, 
+                metadata={"amount": float(amount), "new_balance": float(locked_user.balance)}
+            )
 
         res_serializer = BalanceResponseSerializer({"balance": locked_user.balance})
         return Response(res_serializer.data)
@@ -151,10 +182,12 @@ class PinSetView(APIView):
 
     @extend_schema(request=PinSetSerializer, responses={status.HTTP_200_OK: None})
     def post(self, request, *args, **kwargs):
-        serializer = PinSetSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            pydantic_data = PinSetRequest(**request.data)
+        except PydanticValidationError as e:
+            raise ValidationError(e.errors())
 
-        pin = serializer.validated_data["pin"]
+        pin = pydantic_data.pin
         request.user.pin = make_password(pin)
         request.user.save(update_fields=["pin"])
 
@@ -168,10 +201,12 @@ class PinCheckView(APIView):
 
     @extend_schema(request=PinCheckSerializer, responses={status.HTTP_200_OK: None, status.HTTP_400_BAD_REQUEST: None})
     def post(self, request, *args, **kwargs):
-        serializer = PinCheckSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            pydantic_data = PinCheckRequest(**request.data)
+        except PydanticValidationError as e:
+            raise ValidationError(e.errors())
 
-        pin = serializer.validated_data["pin"]
+        pin = pydantic_data.pin
         if not request.user.pin:
             return Response({"detail": "PIN is not set."}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -1,5 +1,6 @@
 class AccountEvent:
     REGISTER         = "account.register"
+    REGISTER_FAILED  = "account.register.failed"
     LOGIN            = "account.login"
     LOGIN_FAILED     = "account.login.failed"
     LOGOUT           = "account.logout"
