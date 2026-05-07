@@ -1,8 +1,10 @@
+from backend.src.audit.schemas import AuditStatus
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status
 from rest_framework.generics import GenericAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -20,6 +22,7 @@ from accounts.serializers import (
 )
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction
+from django.core.cache import cache
 from django.db.models import F
 from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from django.contrib.auth import get_user_model
@@ -138,6 +141,8 @@ class LogoutView(APIView):
 
 class BalanceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "transactions"
 
     @extend_schema(responses={status.HTTP_200_OK: BalanceResponseSerializer})
     def get(self, request, *args, **kwargs):
@@ -148,6 +153,24 @@ class BalanceView(APIView):
 
     @extend_schema(request=BalanceIncrementSerializer, responses={status.HTTP_200_OK: BalanceResponseSerializer})
     def post(self, request, *args, **kwargs):
+        # 1. Idempotency Check
+        idempotency_key = request.headers.get("X-Idempotency-Key")
+        if not idempotency_key:
+            log_event(
+                WalletEvent.BALANCE_CREDITED, 
+                AuditStatus.FAILED, 
+                user=request.user, 
+                request=request, 
+                metadata={"error": "X-Idempotency-Key header is required"}
+            )
+            raise ValidationError("X-Idempotency-Key header is required")
+        
+        cache_key = f"idempotency_bal_{request.user.id}_{idempotency_key}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return Response(cached_response, status=status.HTTP_200_OK)
+
+        # 2. Validation
         try:
             pydantic_data = BalanceIncrementRequest(**request.data)
         except PydanticValidationError as e:
@@ -156,6 +179,7 @@ class BalanceView(APIView):
         amount = pydantic_data.amount
         user = request.user
 
+        # 3. Execution & Logging
         with transaction.atomic():
             # Use select_for_update to avoid race conditions
             locked_user = type(user).objects.select_for_update().get(pk=user.pk)
@@ -165,15 +189,22 @@ class BalanceView(APIView):
             locked_user.refresh_from_db(fields=['balance'])
 
             # Log audit trail inside the transaction to ensure atomic results
+            # Logging happens ONLY after all verifications (auth, pydantic, idempotency)
             log_event(
                 WalletEvent.BALANCE_CREDITED, 
                 "SUCCESS", 
                 user=user, 
                 request=request, 
-                metadata={"amount": float(amount), "new_balance": float(locked_user.balance)}
+                metadata={"amount": int(amount), "new_balance": int(locked_user.balance)}
             )
 
-        res_serializer = BalanceResponseSerializer({"balance": locked_user.balance})
+        res_data = {"balance": locked_user.balance}
+        
+        # 4. Cache for Idempotency
+        if idempotency_key:
+            cache.set(cache_key, res_data, timeout=3600)
+
+        res_serializer = BalanceResponseSerializer(res_data)
         return Response(res_serializer.data)
 
 
