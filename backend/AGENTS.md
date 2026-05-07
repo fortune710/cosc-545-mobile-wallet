@@ -7,7 +7,7 @@
 
 4. For every downstream called made in API routes, include structured logs. Refer to the `logging-best-practices` agent skill on what to include in structured logs depending on the API context. Include structured logs for error cases especially.
 
-5. For Django best practics, refer to the `django-patterns` agent skill.
+5. For Django best practices, refer to the `django-patterns` agent skill.
 
 6. **Audit Logging**: Every user and regular system action (authentication, wallet movements, recipient changes, etc.) MUST be logged using the audit logger.
    - **Utility**: Use the `log_event` function located in `backend/src/audit/logger.py`.
