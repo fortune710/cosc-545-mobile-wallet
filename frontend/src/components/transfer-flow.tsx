@@ -7,13 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AmountDisplay } from "./amount-display"
 
-type Recipient = {
-  id: string
-  name: string
-  email: string
-}
+import { config } from "@/lib/app-config"
+import type { TransferRecipient, TransferStep } from "@/lib/types"
 
-const mockRecipients: Recipient[] = [
+const mockRecipients: TransferRecipient[] = [
   { id: "r1", name: "Jordan Miles", email: "jordan@example.com" },
   { id: "r2", name: "Luna Carter", email: "luna@example.com" },
   { id: "r3", name: "Sam Rivera", email: "sam@example.com" },
@@ -21,7 +18,6 @@ const mockRecipients: Recipient[] = [
 ]
 
 const quickAmounts = [10, 20, 30, 50]
-type Step = 1 | 2 | 3
 
 /**
  * Formats a numeric value as USD currency string.
@@ -48,10 +44,10 @@ export function TransferFlow({
 }: {
   mode: "send" | "receive"
 }) {
-  const MAX_AMOUNT = 50
-  const [step, setStep] = useState<Step>(1)
+  const MAX_AMOUNT = config.maxPaymentAmount
+  const [step, setStep] = useState<TransferStep>(1)
   const [emailInput, setEmailInput] = useState("")
-  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null)
+  const [selectedRecipient, setSelectedRecipient] = useState<TransferRecipient | null>(null)
   const [amount, setAmount] = useState(MAX_AMOUNT)
 
   const handleAmountChange = (value: number) => {
@@ -72,7 +68,7 @@ export function TransferFlow({
     )
   }, [emailInput])
 
-  function goToAmountStep(recipient: Recipient) {
+  function goToAmountStep(recipient: TransferRecipient) {
     setSelectedRecipient(recipient)
     setEmailInput(recipient.email)
     setStep(2)
