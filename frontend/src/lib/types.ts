@@ -65,3 +65,7 @@ export type AuthUser = {
   lastName: string
   email: string
 }
+
+export interface SignOutConfirmationProps {
+  children: React.ReactNode
+}

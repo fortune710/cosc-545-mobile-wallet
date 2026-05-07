@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { authService } from "@/services/auth-service"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import type { SignOutConfirmationProps } from "@/lib/types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,9 +26,7 @@ import {
 } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
 
-interface SignOutConfirmationProps {
-  children: React.ReactNode
-}
+
 
 export function SignOutConfirmation({ children }: SignOutConfirmationProps) {
   const [open, setOpen] = useState(false)

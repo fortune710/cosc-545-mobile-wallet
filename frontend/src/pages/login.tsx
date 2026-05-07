@@ -9,9 +9,8 @@ import { config } from '@/lib/app-config'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-import { authService } from '@/services/auth-service'
-
-import { useQueryClient } from '@tanstack/react-query'
+import { useLogin } from '@/hooks/use-login'
+import logger from '@/lib/logger'
 
 const MAX_ATTEMPTS = 3
 const LOCKOUT_MS = 30_000
@@ -20,7 +19,7 @@ const normalizeEmail = (value: string) => value.trim().toLowerCase()
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function LoginPage() {
-    const queryClient = useQueryClient()
+    const loginMutation = useLogin()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
@@ -47,25 +46,39 @@ export function LoginPage() {
         setIsSubmitting(true)
         setErrorMessage('')
 
+        logger.info({ 
+            event: 'login_attempt', 
+            email, 
+            attempt: failedAttempts + 1, 
+            maxAttempts: MAX_ATTEMPTS 
+        }, 'User attempting login')
+
         try {
-            await authService.login({ email, password })
+            const response = await loginMutation.mutateAsync({ email, password })
             
-            // Prefetch current user
-            await queryClient.prefetchQuery({
-                queryKey: ['currentUser'],
-                queryFn: () => authService.getUser(),
-            })
+            logger.info({ 
+                event: 'login_success', 
+                userId: response?.user?.id || email,
+                tokenGenerated: !!response?.access 
+            }, 'User logged in successfully')
 
             setIsAuthenticated(true)
         } catch (error: any) {
             const nextAttempts = failedAttempts + 1
             setFailedAttempts(nextAttempts)
+            const isBeingLocked = nextAttempts >= MAX_ATTEMPTS
             
-            // Set error message from API or default
-            const apiError = error.response?.data?.detail || error.response?.data?.non_field_errors?.[0]
-            setErrorMessage(apiError || 'Invalid sign-in details.')
+            logger.error({ 
+                event: 'login_failure', 
+                email, 
+                error: error?.response?.data || error.message, 
+                isBeingLocked 
+            }, 'Login failed')
 
-            if (nextAttempts >= MAX_ATTEMPTS) {
+            // Always use generic error message to prevent enumeration
+            setErrorMessage('Invalid sign-in details.')
+
+            if (isBeingLocked) {
                 setLockedUntil(Date.now() + LOCKOUT_MS)
                 setErrorMessage('Too many attempts. Please wait before trying again.')
             }

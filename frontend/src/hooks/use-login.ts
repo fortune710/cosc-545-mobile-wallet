@@ -1,0 +1,22 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { authService } from '@/services/auth-service'
+import { queryKeys } from '@/lib/query-keys'
+import logger from '@/lib/logger'
+import type { SignInValues } from '@/lib/types'
+
+export function useLogin() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (credentials: SignInValues) => authService.login(credentials),
+    onSuccess: async () => {
+      await queryClient.prefetchQuery({
+        queryKey: queryKeys.currentUser,
+        queryFn: () => authService.getUser(),
+      })
+    },
+    onError: (error) => {
+      logger.error({ error }, 'Login mutation failed')
+    }
+  })
+}
