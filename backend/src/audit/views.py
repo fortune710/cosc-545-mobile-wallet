@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, pagination
 from .models import AuditEvent
 from .serializers import AuditEventSerializer
+from .schemas import AuditLogRequest
 
 class AuditPagination(pagination.PageNumberPagination):
     page_size = 50
@@ -18,9 +19,10 @@ class AuditEventViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        user_id = self.request.query_params.get('user_id')
-        event_type = self.request.query_params.get('event_type')
-        status = self.request.query_params.get('status')
+        request_data = AuditLogRequest(**self.request.query_params)
+        user_id = request_data.user_id
+        event_type = request_data.event_type
+        status = request_data.status
         
         if user_id:
             queryset = queryset.filter(user_id=user_id)

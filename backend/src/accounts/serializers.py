@@ -140,11 +140,9 @@ class LogoutSerializer(serializers.Serializer):
 
 
 class BalanceIncrementSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        min_value=Decimal("0.01"),
-        max_value=Decimal("50.00")
+    amount = serializers.IntegerField(
+        min_value=100,
+        max_value=5000
     )
 
 
