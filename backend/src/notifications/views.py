@@ -1,6 +1,8 @@
 from rest_framework import viewsets, permissions, pagination
 from .models import Notification, Recipient
 from .serializers import NotificationSerializer, RecipientSerializer
+from audit.logger import log_event
+from audit.events import RecipientEvent
 
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
@@ -30,4 +32,21 @@ class RecipientViewSet(viewsets.ModelViewSet):
         return Recipient.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        recipient = serializer.save(user=self.request.user)
+        log_event(
+            RecipientEvent.RECIPIENT_ADDED, 
+            "SUCCESS", 
+            user=self.request.user, 
+            request=self.request,
+            metadata={"recipient_id": recipient.id}
+        )
+
+    def perform_destroy(self, instance):
+        log_event(
+            RecipientEvent.RECIPIENT_REMOVED, 
+            "SUCCESS", 
+            user=self.request.user, 
+            request=self.request,
+            metadata={"recipient_id": instance.id}
+        )
+        instance.delete()
