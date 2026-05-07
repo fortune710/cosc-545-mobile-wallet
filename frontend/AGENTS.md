@@ -15,5 +15,11 @@
 
 7. Every type or interface you create MUST be in `src/lib/types.ts`.
 
+8. ALWAYS remove unused imports and unsued functions in very component.
+
+9. ALWAYS fetch data in custom hooks and extract business logic to service layers files or custom hooks depending on complexity.
+
+10. Keep Zod validation schemas in the `src/lib/schemas` directory. Keep related schemas in the same file (eg. auth.ts, transactions.ts, payments.ts, etc.)
+
 ### Domain Knowledge
 1. This project is a mobile wallet application that allows users to send and recieve micro-payments. All amounts are in USD and should be capped at $50.
