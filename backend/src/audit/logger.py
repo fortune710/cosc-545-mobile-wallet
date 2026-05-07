@@ -1,17 +1,13 @@
-from django.contrib.auth import get_user_model
 from .models import AuditEvent
+from django.db import transaction
 
 
 def get_client_ip(request):
     """Utility to get client IP from request."""
     if not request:
         return None
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
+    # For security, we only trust REMOTE_ADDR unless behind a known proxy.
+    return request.META.get('REMOTE_ADDR')
 
 
 def log_event(
@@ -48,11 +44,13 @@ def log_event(
         status=status,
         metadata=metadata,
     )
-    # The first save provides an ID and triggers auto_now_add on timestamp
-    event.save()
     
-    # Compute signature with the stable timestamp
-    event.signature = event.compute_signature()
-    event.save(update_fields=['signature'])
+    with transaction.atomic():
+        # The first save provides an ID and triggers auto_now_add on timestamp
+        event.save()
+        
+        # Compute signature with the stable timestamp
+        event.signature = event.compute_signature()
+        event.save(update_fields=['signature'])
     
     return event

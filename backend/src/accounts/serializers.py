@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db import IntegrityError, transaction
@@ -10,9 +11,7 @@ User = get_user_model()
 
 
 def get_client_ip(request):
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    # Only trust REMOTE_ADDR for security reasons.
     return request.META.get("REMOTE_ADDR")
 
 
@@ -37,8 +36,6 @@ class UserSerializer(serializers.ModelSerializer):
             "state",
             "postal_code",
             "country",
-            "registration_ip",
-            "last_login_ip",
             "email_verified",
             "mfa_enabled",
             "mfa_required",
@@ -104,7 +101,9 @@ class RegisterSerializer(serializers.ModelSerializer):
                     **validated_data,
                 )
         except IntegrityError:
-            return User.objects.filter(email__iexact=validated_data["email"]).first()
+            raise serializers.ValidationError(
+                {"detail": "If this email address is not already registered, you will receive a confirmation email shortly."}
+            )
 
 
 class RegisterResponseSerializer(serializers.Serializer):
@@ -141,11 +140,16 @@ class LogoutSerializer(serializers.Serializer):
 
 
 class BalanceIncrementSerializer(serializers.Serializer):
-    amount = serializers.IntegerField(min_value=1)
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        max_value=Decimal("50.00")
+    )
 
 
 class BalanceResponseSerializer(serializers.Serializer):
-    balance = serializers.IntegerField(read_only=True)
+    balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
 
 class PinSetSerializer(serializers.Serializer):
@@ -158,4 +162,9 @@ class PinSetSerializer(serializers.Serializer):
 
 
 class PinCheckSerializer(serializers.Serializer):
-    pin = serializers.CharField()
+    pin = serializers.CharField(min_length=4, max_length=4)
+
+    def validate_pin(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("PIN must be exactly 4 digits.")
+        return value
