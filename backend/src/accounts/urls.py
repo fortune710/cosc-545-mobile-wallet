@@ -9,6 +9,9 @@ from accounts.views import (
     BalanceView,
     PinSetView,
     PinCheckView,
+    ChangePasswordView,
+    EmailVerificationSendView,
+    OtpCheckView,
 )
 
 urlpatterns = [
@@ -20,4 +23,7 @@ urlpatterns = [
     path("balance/", BalanceView.as_view(), name="auth-balance"),
     path("pin/", PinSetView.as_view(), name="auth-pin-set"),
     path("pin/check/", PinCheckView.as_view(), name="auth-pin-check"),
+    path("password/", ChangePasswordView.as_view(), name="auth-password-change"),
+    path("verify/", EmailVerificationSendView.as_view(), name="auth-verify-send"),
+    path("otp/check/", OtpCheckView.as_view(), name="auth-otp-check"),
 ]

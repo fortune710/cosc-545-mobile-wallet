@@ -31,6 +31,8 @@ class User(BaseModel, AbstractUser):
     failed_mfa_attempts = models.PositiveSmallIntegerField(default=0)
     balance = models.BigIntegerField(default=0)
     pin = models.CharField(max_length=128, blank=True, null=True)
+    otp_hash = models.CharField(max_length=128, blank=True, null=True)
+    otp_expires_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

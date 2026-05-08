@@ -95,11 +95,13 @@ DATABASES = {
     }
 }
 
+MIN_PASSWORD_LENGTH = 12
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 12},
+        "OPTIONS": {"min_length": MIN_PASSWORD_LENGTH},
     },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -141,7 +143,11 @@ REST_FRAMEWORK = {
         "anon": "100/day",
         "user": "5000/day",
         "auth": "10/minute",
-        "transactions": "100/hour",
+        "transactions": "10/hour",
+        "password_change": "5/hour",
+        "profile_update": "30/hour",
+        "email_verify_send": "5/hour",
+        "otp_check": "10/hour",
     },
 }
 

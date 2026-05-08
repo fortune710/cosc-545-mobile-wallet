@@ -34,7 +34,7 @@ export function MorePage() {
       <div className="flex flex-col px-4 sm:px-6">
 
         {/* Profile Card */}
-        <div className="group flex items-center gap-4 py-4 mb-4 active:scale-[0.98] transition-all cursor-pointer rounded-2xl px-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+        <Link to="/profile" className="group flex items-center gap-4 py-4 mb-4 active:scale-[0.98] transition-all cursor-pointer rounded-2xl px-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
           {loading ? (
             <Skeleton className="size-[60px] rounded-full" />
           ) : (
@@ -62,7 +62,7 @@ export function MorePage() {
               </>
             )}
           </div>
-        </div>
+        </Link>
 
         {/* Account Information */}
         <section className="mb-8">
@@ -70,13 +70,13 @@ export function MorePage() {
             Account Information
           </h2>
           <div className="bg-white dark:bg-zinc-900/50 rounded-none sm:rounded-2xl">
-            <div className="flex items-center justify-between py-3 px-2 cursor-pointer transition-colors group">
+            <Link to="/profile" className="flex items-center justify-between py-3 px-2 transition-colors group">
               <div className="flex items-center gap-3.5">
                 <UserCircle className="size-[22px] text-zinc-400" strokeWidth={1.5} />
                 <span className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100 group-active:text-zinc-500">Your Profile</span>
               </div>
               <ChevronRight className="size-[20px] text-zinc-300" strokeWidth={2} />
-            </div>
+            </Link>
             <div className="flex items-center justify-between py-3 px-2 cursor-pointer transition-colors group">
               <div className="flex items-center gap-3.5">
                 <BadgeCheck className="size-[22px] text-zinc-400" strokeWidth={1.5} />
@@ -93,13 +93,13 @@ export function MorePage() {
             Account Security
           </h2>
           <div className="bg-white dark:bg-zinc-900/50 rounded-none sm:rounded-2xl">
-            <div className="flex items-center justify-between py-3 px-2 cursor-pointer transition-colors group">
+            <Link to="/change-password" className="flex items-center justify-between py-3 px-2 transition-colors group">
               <div className="flex items-center gap-3.5">
                 <Key className="size-[22px] text-zinc-400" strokeWidth={1.5} />
                 <span className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100 group-active:text-zinc-500">Change Password</span>
               </div>
               <ChevronRight className="size-[20px] text-zinc-300" strokeWidth={2} />
-            </div>
+            </Link>
             <div className="flex items-center justify-between py-3 px-2 cursor-pointer transition-colors group">
               <div className="flex items-center gap-3.5">
                 <ShieldCheck className="size-[22px] text-zinc-400" strokeWidth={1.5} />
@@ -107,13 +107,13 @@ export function MorePage() {
               </div>
               <ChevronRight className="size-[20px] text-zinc-300" strokeWidth={2} />
             </div>
-            <div className="flex items-center justify-between py-3 px-2 cursor-pointer transition-colors group">
+            <Link to="/change-pin" className="flex items-center justify-between py-3 px-2 transition-colors group">
               <div className="flex items-center gap-3.5">
                 <Lock className="size-[22px] text-zinc-400" strokeWidth={1.5} />
                 <span className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100 group-active:text-zinc-500">Change PIN</span>
               </div>
               <ChevronRight className="size-[20px] text-zinc-300" strokeWidth={2} />
-            </div>
+            </Link>
           </div>
         </section>
 

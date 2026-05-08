@@ -1,10 +1,17 @@
 import api from '@/lib/api'
 import logger from '@/lib/logger'
-import type { SignInValues, SignUpValues, AuthUser } from '@/lib/types'
+import type {
+  AuthUser,
+  ChangePasswordValues,
+  LoginResponse,
+  PinPresenceResponse,
+  SignInValues,
+  SignUpValues,
+} from '@/lib/types'
 import { UnauthorizedError, TokenExpiredError } from '@/lib/errors/auth'
 
 export const authService = {
-  async login(credentials: SignInValues) {
+  async login(credentials: SignInValues): Promise<LoginResponse> {
     logger.info({ email: credentials.email }, 'Attempting login')
     try {
       const response = await api.post('/api/auth/login/', {
@@ -78,6 +85,55 @@ export const authService = {
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       logger.info('Local session cleared')
+    }
+  },
+
+  async checkPin(pin: string) {
+    logger.info('Checking current PIN')
+    try {
+      const response = await api.post('/api/auth/pin/check/', { pin })
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'PIN check failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async setPin(pin: string) {
+    logger.info('Setting new PIN')
+    try {
+      const response = await api.post('/api/auth/pin/', { pin })
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'PIN update failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async changePassword(data: ChangePasswordValues) {
+    logger.info('Attempting password change')
+    try {
+      const response = await api.post('/api/auth/password/', {
+        current_password: data.currentPassword,
+        new_password: data.newPassword,
+      })
+
+      logger.info('Password changed successfully')
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'Password change failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async getPinPresence(): Promise<PinPresenceResponse> {
+    logger.info('Fetching PIN presence')
+    try {
+      const response = await api.get('/api/auth/pin/check/')
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'PIN presence check failed')
+      throw this.handleApiError(error)
     }
   },
 

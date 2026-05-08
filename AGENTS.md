@@ -17,7 +17,7 @@
 ## Backend Guidance
 - Keep the Django backend API-first.
 - Prefer DRF serializers, permissions, and explicit schemas for every endpoint.
-- Use decimal-safe handling for money and validate business limits on the server.
+- Use integer-safe handling for money and validate business limits on the server.
 - Keep user-bound queries derived from the authenticated session, not caller-supplied identifiers.
 - When adding auth or wallet features, preserve a clean separation between:
   - authentication and MFA
