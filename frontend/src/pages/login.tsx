@@ -4,7 +4,7 @@ import {
     IconEye,
     IconEyeOff,
 } from '@tabler/icons-react'
-import { Navigate, Link } from 'react-router-dom'
+import { Navigate, Link, useSearchParams } from 'react-router-dom'
 import { config } from '@/lib/app-config'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +19,7 @@ const normalizeEmail = (value: string) => value.trim().toLowerCase()
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function LoginPage() {
+    const [searchParams] = useSearchParams()
     const loginMutation = useLogin()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -27,7 +28,7 @@ export function LoginPage() {
     const [failedAttempts, setFailedAttempts] = useState(0)
     const [lockedUntil, setLockedUntil] = useState<number | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [redirectTo, setRedirectTo] = useState<string | null>(null)
 
     const normalizedEmail = useMemo(() => normalizeEmail(email), [email])
     const emailIsValid = emailRegex.test(normalizedEmail)
@@ -35,6 +36,12 @@ export function LoginPage() {
     const isLocked = Boolean(lockedUntil && Date.now() < lockedUntil)
     const formIsValid = emailIsValid && passwordIsValid
     const canSubmit = formIsValid && !isLocked && !isSubmitting
+    const returnTo = (() => {
+        const rawValue = searchParams.get('returnTo')
+        if (!rawValue) return '/home'
+        if (!rawValue.startsWith('/') || rawValue.startsWith('//')) return '/home'
+        return rawValue
+    })()
 
     const handleSignIn = async (event: React.FormEvent) => {
         event.preventDefault()
@@ -62,7 +69,11 @@ export function LoginPage() {
                 tokenGenerated: !!response?.access 
             }, 'User logged in successfully')
 
-            setIsAuthenticated(true)
+            if (response.has_pin) {
+                setRedirectTo(returnTo)
+            } else {
+                setRedirectTo(`/set-pin?returnTo=${encodeURIComponent(returnTo)}`)
+            }
         } catch (error: any) {
             const nextAttempts = failedAttempts + 1
             setFailedAttempts(nextAttempts)
@@ -87,7 +98,7 @@ export function LoginPage() {
         }
     }
 
-    if (isAuthenticated) return <Navigate to="/home" replace />
+    if (redirectTo) return <Navigate to={redirectTo} replace />
 
     return (
         <main className="min-h-svh bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white transition-colors duration-300">
