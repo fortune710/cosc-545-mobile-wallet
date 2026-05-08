@@ -11,4 +11,23 @@ export const signUpSchema = z.object({
   password: z.string().min(12, "Password must be at least 12 characters."),
 })
 
+const weakPins = new Set([
+  "0000",
+  "1111",
+  "2222",
+  "3333",
+  "4444",
+  "5555",
+  "6666",
+  "7777",
+  "8888",
+  "9999",
+  "1234",
+])
+
+export const pinSchema = z
+  .string()
+  .regex(/^\d{4}$/, "PIN must be exactly 4 digits.")
+  .refine((pin) => !weakPins.has(pin), "Choose a less predictable PIN.")
+
 // Types are moved to src/lib/types.ts per product rules
