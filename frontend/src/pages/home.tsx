@@ -4,15 +4,18 @@ import {
   Send,
   Wallet,
 } from "lucide-react"
+import { useMemo } from "react"
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 
 import { TransactionListItem } from "@/components/transaction-list-item"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useBalanceQuery } from "@/hooks/use-balance"
+import { authService } from "@/services/auth-service"
 import { mockTransactions } from "@/lib/transactions"
 import { useNotifications } from "@/hooks/use-notifications"
 
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 function ActionButton({
@@ -90,6 +93,26 @@ function TransactionsPanel() {
 export function HomePage() {
   const { unreadCount } = useNotifications()
   const { user, loading } = useCurrentUser()
+  const { data: balanceData, isLoading: balanceLoading } = useBalanceQuery(
+    authService.isAuthenticated()
+  )
+
+  const formattedBalance = useMemo(() => {
+    // Balance is stored as cents, convert to dollars
+    const rawBalance = balanceData?.balance
+    if (!rawBalance) {
+      return "$0.00"
+    }
+
+    const numericBalance = rawBalance / 100
+
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numericBalance)
+  }, [balanceData?.balance])
 
   return (
     <main className="mx-auto w-full max-w-[920px] box-border px-4 pt-10 sm:px-5 md:px-8 md:pt-12">
@@ -132,7 +155,11 @@ export function HomePage() {
             </div>
 
             <div className="mt-5 text-[64px] font-semibold leading-[0.95] tracking-[-0.05em] text-zinc-950 md:text-[70px]">
-              $1,987.18
+              {balanceLoading ? (
+                <Skeleton className="mx-auto h-[1.05em] w-[4.5ch] rounded-md" />
+              ) : (
+                formattedBalance
+              )}
             </div>
           </div>
 
