@@ -8,6 +8,19 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 User = get_user_model()
+WEAK_PINS = {
+    "0000",
+    "1111",
+    "2222",
+    "3333",
+    "4444",
+    "5555",
+    "6666",
+    "7777",
+    "8888",
+    "9999",
+    "1234",
+}
 
 
 def get_client_ip(request):
@@ -132,6 +145,7 @@ class AuthTokenSerializer(TokenObtainPairSerializer):
             self.user.last_login_ip = last_login_ip
             self.user.save(update_fields=["last_login_ip"])
         data["user"] = UserSerializer(self.user).data
+        data["has_pin"] = bool(self.user.pin)
         return data
 
 
@@ -147,7 +161,7 @@ class BalanceIncrementSerializer(serializers.Serializer):
 
 
 class BalanceResponseSerializer(serializers.Serializer):
-    balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    balance = serializers.IntegerField(read_only=True)
 
 
 class PinSetSerializer(serializers.Serializer):
@@ -156,6 +170,8 @@ class PinSetSerializer(serializers.Serializer):
     def validate_pin(self, value):
         if not value.isdigit():
             raise serializers.ValidationError("PIN must be exactly 4 digits.")
+        if value in WEAK_PINS:
+            raise serializers.ValidationError("Choose a less predictable PIN.")
         return value
 
 
@@ -165,4 +181,35 @@ class PinCheckSerializer(serializers.Serializer):
     def validate_pin(self, value):
         if not value.isdigit():
             raise serializers.ValidationError("PIN must be exactly 4 digits.")
+        return value
+
+
+class PinHasResponseSerializer(serializers.Serializer):
+    has_pin = serializers.BooleanField(read_only=True)
+
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    first_name = serializers.CharField(required=False, max_length=150, allow_blank=True)
+    last_name = serializers.CharField(required=False, max_length=150, allow_blank=True)
+    display_name = serializers.CharField(required=False, max_length=150, allow_blank=True)
+    phone_number = serializers.CharField(required=False, max_length=32, allow_blank=True)
+    address_line_1 = serializers.CharField(required=False, max_length=255, allow_blank=True)
+    address_line_2 = serializers.CharField(required=False, max_length=255, allow_blank=True)
+    city = serializers.CharField(required=False, max_length=120, allow_blank=True)
+    state = serializers.CharField(required=False, max_length=120, allow_blank=True)
+    postal_code = serializers.CharField(required=False, max_length=32, allow_blank=True)
+    country = serializers.CharField(required=False, max_length=2, allow_blank=True)
+
+
+class VerificationSendResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField(read_only=True)
+
+
+class OtpCheckSerializer(serializers.Serializer):
+    otp = serializers.CharField(min_length=4, max_length=4)
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must be exactly 4 digits.")
         return value
