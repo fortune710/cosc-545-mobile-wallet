@@ -144,6 +144,10 @@ REST_FRAMEWORK = {
         "user": "5000/day",
         "auth": "10/minute",
         "transactions": "10/hour",
+        "password_change": "5/hour",
+        "profile_update": "30/hour",
+        "email_verify_send": "5/hour",
+        "otp_check": "10/hour",
     },
 }
 
