@@ -20,12 +20,16 @@ import { SendPage } from "@/pages/send"
 import { TransactionsPage } from "@/pages/transactions"
 import { LoginPage } from "@/pages/login"
 import { SignUpPage } from "@/pages/signup"
+import { ChangePinPage } from "@/pages/change-pin"
+import { SetPinPage } from "@/pages/set-pin"
+import { ChangePasswordPage } from "@/pages/change-password"
+import { ProfilePage } from "@/pages/profile"
 
 const queryClient = new QueryClient()
 
 function AppShell() {
   const { pathname } = useLocation()
-  const hideTabBar = ["/login", "/signup", "/add-balance", "/send", "/receive", "/notifications", "/history"].includes(pathname)
+  const hideTabBar = ["/login", "/signup", "/add-balance", "/send", "/receive", "/notifications", "/history", "/change-pin", "/change-password", "/profile", "/set-pin"].includes(pathname)
 
   return (
     <div className="min-h-svh bg-white text-zinc-950">
@@ -42,6 +46,10 @@ function AppShell() {
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/recipients" element={<RecipientsPage />} />
         <Route path="/more" element={<MorePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/change-pin" element={<ChangePinPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
+        <Route path="/set-pin" element={<SetPinPage />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
 
