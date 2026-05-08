@@ -43,6 +43,10 @@ export type NotificationItem = {
 
 export type SignInValues = z.infer<typeof signInSchema>
 export type SignUpValues = z.infer<typeof signUpSchema>
+export type ChangePasswordValues = {
+  currentPassword: string
+  newPassword: string
+}
 
 export type TransferRecipient = {
   id: string
@@ -64,6 +68,24 @@ export type AuthUser = {
   firstName: string
   lastName: string
   email: string
+}
+
+export type PinPresenceResponse = {
+  has_pin: boolean
+}
+
+export type BalanceResponse = {
+  balance: number
+}
+
+export type LoginResponse = {
+  access: string
+  refresh: string
+  user: {
+    id?: string | number
+    email?: string
+  }
+  has_pin: boolean
 }
 
 export interface SignOutConfirmationProps {
