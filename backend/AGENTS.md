@@ -12,3 +12,4 @@
 6. **Audit Logging**: Every user and regular system action (authentication, wallet movements, recipient changes, etc.) MUST be logged using the audit logger.
    - **Utility**: Use the `log_event` function located in `backend/src/audit/logger.py`.
    - **Event Types**: Use the centralized action enums (constants) defined in `backend/src/audit/events.py`. Always add new event types to this file instead of using raw strings.
+   - **Context**: Always include relevant context in the log metadata, such as user ID, IP address, request data, and any error messages. The system shall not write PII, payment amounts, or session tokens to application-level debug or error logs.
