@@ -35,9 +35,16 @@ from audit.logger import log_event
 from audit.events import AccountEvent, WalletEvent
 from pydantic import ValidationError as PydanticValidationError
 import secrets
+import uuid
+import pyotp
 from datetime import timedelta
-
 from django.utils import timezone
+from audit.models import AuditEvent
+from notifications.utils import (
+    notify_new_device,
+    notify_new_location,
+    notify_failed_login_attempts,
+)
 from accounts.schemas import (
     RegisterRequest,
     LogoutRequest,
@@ -71,19 +78,27 @@ class RegisterView(GenericAPIView):
             )
             raise ValidationError(e.errors())
 
+        device_id = request.headers.get("X-DEVICE-ID")
+        if not device_id:
+            return Response({"detail": "X-DEVICE-ID header is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(data=pydantic_data.model_dump())
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        user.device_fingerprint = device_id
+        user.mfa_enrollment_token = uuid.uuid4()
+        user.save(update_fields=["device_fingerprint", "mfa_enrollment_token"])
+        
         log_event(AccountEvent.REGISTER, "SUCCESS", user=user, request=request)
 
         return Response(
             {
                 "detail": (
-                    "If the account can be created, the next verification step will be sent "
-                    "to the provided email address."
-                )
+                    "Account created. Please proceed to MFA enrollment."
+                ),
+                "mfa_enrollment_token": str(user.mfa_enrollment_token)
             },
-            status=status.HTTP_202_ACCEPTED,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -92,23 +107,121 @@ class LoginView(TokenObtainPairView):
     serializer_class = AuthTokenSerializer
 
     def post(self, request, *args, **kwargs):
+        device_id = request.headers.get("X-DEVICE-ID")
+        if not device_id:
+            return Response({"detail": "X-DEVICE-ID header is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = request.data.get("email")
+        user = User.objects.filter(email=email).first()
+
+        if not user:
+            log_event(AccountEvent.LOGIN_FAILED, "FAILED", request=request, metadata={"error": "user_not_found"})
+            # Did not return 404 to not reveal if user exists or not
+            return Response(
+                {"detail": "Invalid credentials."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        if user.is_locked:
+            log_event(AccountEvent.LOGIN_FAILED, "FAILED", user=user, request=request, metadata={"error": "account_locked"})
+            return Response(
+                {"detail": f"Account is locked. Please try again after {user.locked_until}."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check for MFA required before full login
+        mfa_code = request.data.get("mfa_code")
+        if not mfa_code:
+            return Response({
+                "detail": "MFA is required.",
+                "mfa_required": True,
+                "mfa_enrolled": user.mfa_totp_seed is not None
+            }, status=status.HTTP_200_OK)
+
         try:
             # SimpleJWT serializer handles authentication and token generation
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             
-            # Extract user from serializer to avoid redundant DB lookup
+            # Extract user from serializer
             user = serializer.user
-            log_event(AccountEvent.LOGIN, "SUCCESS", user=user, request=request)
+
+            # If MFA is enabled, verify code
+            if user.mfa_enabled:
+                mfa_code = request.data.get("mfa_code")
+                totp = pyotp.TOTP(user.mfa_totp_seed)
+                if not totp.verify(mfa_code, valid_window=1):
+                    log_event(AccountEvent.LOGIN_FAILED, "FAILED", user=user, request=request, metadata={"error": "invalid_mfa_code"})
+                    return Response({"detail": "Invalid MFA code."}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Successful Login Logic
+            now = timezone.now()
+            thirty_days_ago = now - timedelta(days=30)
             
+            # Check for new device (30 day window)
+            recent_device_events = AuditEvent.objects.filter(
+                user=user,
+                device_id=device_id,
+                timestamp__gte=thirty_days_ago,
+                status="SUCCESS"
+            ).exists()
+            
+            if not recent_device_events and user.device_fingerprint != device_id:
+                notify_new_device(user, device_id)
+
+            # Check for new location (30 day window)
+            current_ip = request.META.get("REMOTE_ADDR")
+            recent_ip_events = AuditEvent.objects.filter(
+                user=user,
+                ip_address=current_ip,
+                timestamp__gte=thirty_days_ago,
+                status="SUCCESS"
+            ).exists()
+            
+            if not recent_ip_events and user.last_login_ip != current_ip:
+                notify_new_location(user, current_ip)
+
+            # Update user security info
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            user.last_login_ip = current_ip
+            
+            # Populate device_fingerprint if it's currently empty
+            update_fields = ["failed_login_attempts", "locked_until", "last_login_ip"]
+            if not user.device_fingerprint:
+                user.device_fingerprint = device_id
+                update_fields.append("device_fingerprint")
+                
+            user.save(update_fields=update_fields)
+
+            log_event(AccountEvent.LOGIN, "SUCCESS", user=user, request=request)
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
             
         except (ValidationError, AuthenticationFailed) as e:
+            if user:
+                user.failed_login_attempts += 1
+                now = timezone.now()
+                
+                # Check for locking (5 fails / 15 mins)
+                fifteen_mins_ago = now - timedelta(minutes=15)
+                if user.last_failed_login_at and user.last_failed_login_at > fifteen_mins_ago:
+                    if user.failed_login_attempts >= 5:
+                        user.locked_until = now + timedelta(minutes=30)
+                else:
+                    # Reset failure window if it's been more than 15 mins since last failure
+                    # or just keep incrementing but check the window logic
+                    pass 
+                
+                user.last_failed_login_at = now
+                user.save(update_fields=["failed_login_attempts", "locked_until", "last_failed_login_at"])
+
+                if user.failed_login_attempts == 3:
+                    notify_failed_login_attempts(user, 3)
+
             log_event(
                 AccountEvent.LOGIN_FAILED, 
                 "FAILED", 
                 request=request, 
-                metadata={"email": request.data.get("email"), "error": str(e)}
+                metadata={"email": email, "error": str(e)}
             )
             raise
 
@@ -448,3 +561,66 @@ class OtpCheckView(APIView):
 
         log_event(AccountEvent.OTP_VERIFIED, "SUCCESS", user=user, request=request)
         return Response({"detail": "OTP verified successfully."}, status=status.HTTP_200_OK)
+
+class MfaEnrollView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(responses={status.HTTP_200_OK: None})
+    def post(self, request, *args, **kwargs):
+        enrollment_token = request.headers.get("X-MFA-TOKEN")
+        user = None
+
+        if enrollment_token:
+            user = User.objects.filter(mfa_enrollment_token=enrollment_token).first()
+        elif request.user.is_authenticated:
+            user = request.user
+
+        if not user:
+            return Response({"detail": "Invalid session or enrollment token."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Generate new seed if not present or re-enroll requested
+        if not user.mfa_totp_seed:
+            user.mfa_totp_seed = pyotp.random_base32()
+            user.save(update_fields=["mfa_totp_seed"])
+            log_event(AccountEvent.MFA_ENROLLED, "SUCCESS", user=user, request=request)
+
+        totp = pyotp.TOTP(user.mfa_totp_seed)
+        provisioning_url = totp.provisioning_uri(
+            name=user.email,
+            issuer_name="SecureWallet"
+        )
+
+        return Response({
+            "provisioning_url": provisioning_url,
+            "mfa_enabled": user.mfa_enabled
+        }, status=status.HTTP_200_OK)
+
+
+class MfaVerifyView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(responses={status.HTTP_200_OK: None})
+    def post(self, request, *args, **kwargs):
+        enrollment_token = request.headers.get("X-MFA-TOKEN")
+        mfa_code = request.data.get("mfa_code")
+        user = None
+
+        if enrollment_token:
+            user = User.objects.filter(mfa_enrollment_token=enrollment_token).first()
+        elif request.user.is_authenticated:
+            user = request.user
+
+        if not user or not user.mfa_totp_seed:
+            return Response({"detail": "Invalid session or enrollment token."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        totp = pyotp.TOTP(user.mfa_totp_seed)
+        if totp.verify(mfa_code, valid_window=1):
+            user.mfa_enabled = True
+            user.mfa_enrollment_token = None # Clear token after successful activation
+            user.save(update_fields=["mfa_enabled", "mfa_enrollment_token"])
+            
+            log_event(AccountEvent.MFA_VERIFIED, "SUCCESS", user=user, request=request)
+            return Response({"detail": "MFA enabled successfully."}, status=status.HTTP_200_OK)
+        else:
+            log_event(AccountEvent.MFA_VERIFY_FAILED, "FAILED", user=user, request=request)
+            return Response({"detail": "Invalid MFA code."}, status=status.HTTP_400_BAD_REQUEST)

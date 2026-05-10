@@ -9,17 +9,29 @@ import type {
   SignUpValues,
 } from '@/lib/types'
 import { UnauthorizedError, TokenExpiredError } from '@/lib/errors/auth'
+import { getDeviceFingerprint } from '@/lib/fingerprint'
 
 export const authService = {
   async login(credentials: SignInValues): Promise<LoginResponse> {
     logger.info({ email: credentials.email }, 'Attempting login')
     try {
+      const deviceId = await getDeviceFingerprint()
       const response = await api.post('/api/auth/login/', {
         email: credentials.email,
         password: credentials.password,
+        mfa_code: credentials.mfaCode,
+      }, {
+        headers: {
+          'X-DEVICE-ID': deviceId
+        }
       })
       
-      const { access, refresh, user } = response.data
+      const { access, refresh, user, mfa_required } = response.data
+
+      // If MFA is required, we don't save tokens yet
+      if (mfa_required) {
+        return response.data
+      }
       
       localStorage.setItem('accessToken', access)
       localStorage.setItem('refreshToken', refresh)
@@ -39,12 +51,17 @@ export const authService = {
       const first_name = nameParts[0]
       const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
 
+      const deviceId = await getDeviceFingerprint()
       const response = await api.post('/api/auth/register/', {
         email: data.email,
         password: data.password,
         first_name,
         last_name,
         display_name: data.fullName,
+      }, {
+        headers: {
+          'X-DEVICE-ID': deviceId
+        }
       })
 
       logger.info({ email: data.email }, 'Registration request completed')
@@ -133,6 +150,30 @@ export const authService = {
       return response.data
     } catch (error: any) {
       logger.error({ error }, 'PIN presence check failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async mfaEnroll(token?: string) {
+    logger.info('Attempting MFA enrollment')
+    const headers = token ? { 'X-MFA-TOKEN': token } : {}
+    try {
+      const response = await api.post('/api/auth/mfa/enroll/', {}, { headers })
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'MFA enrollment failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async mfaVerify(code: string, token?: string) {
+    logger.info('Attempting MFA verification')
+    const headers = token ? { 'X-MFA-TOKEN': token } : {}
+    try {
+      const response = await api.post('/api/auth/mfa/verify/', { mfa_code: code }, { headers })
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'MFA verification failed')
       throw this.handleApiError(error)
     }
   },

@@ -8,3 +8,4 @@ psycopg[binary]==3.2.12
 django-simple-history==3.8.0
 python-dotenv==1.0.1
 pydantic[email]==2.10.6
+pyotp==2.9.0

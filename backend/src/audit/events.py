@@ -14,6 +14,9 @@ class AccountEvent:
     EMAIL_VERIFY_CONFIRMED = "account.email.verify.confirmed"
     OTP_VERIFIED           = "account.otp.verified"
     OTP_VERIFY_FAILED      = "account.otp.verify.failed"
+    MFA_ENROLLED           = "account.mfa.enrolled"
+    MFA_VERIFIED           = "account.mfa.verified"
+    MFA_VERIFY_FAILED      = "account.mfa.failed"
 
 class WalletEvent:
     BALANCE_VIEWED   = "wallet.balance.viewed"

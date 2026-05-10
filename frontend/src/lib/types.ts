@@ -86,6 +86,9 @@ export type LoginResponse = {
     email?: string
   }
   has_pin: boolean
+  mfa_required?: boolean
+  mfa_enrollment_token?: string
+  mfa_enrolled?: boolean
 }
 
 export interface SignOutConfirmationProps {

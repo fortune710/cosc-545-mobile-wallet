@@ -11,12 +11,14 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (credentials: SignInValues) => authService.login(credentials),
-    onSuccess: async () => {
-      await queryClient.prefetchQuery({
-        queryKey: queryKeys.currentUser,
-        queryFn: () => authService.getUser(),
-      })
-      await prefetchBalance()
+    onSuccess: async (data) => {
+      if (!data.mfa_required) {
+        await queryClient.prefetchQuery({
+          queryKey: queryKeys.currentUser,
+          queryFn: () => authService.getUser(),
+        })
+        await prefetchBalance()
+      }
     },
     onError: (error) => {
       logger.error({ error }, 'Login mutation failed')
