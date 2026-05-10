@@ -100,13 +100,13 @@ export function MorePage() {
               </div>
               <ChevronRight className="size-[20px] text-zinc-300" strokeWidth={2} />
             </Link>
-            <div className="flex items-center justify-between py-3 px-2 cursor-pointer transition-colors group">
+            <Link to="/mfa" className="flex items-center justify-between py-3 px-2 transition-colors group">
               <div className="flex items-center gap-3.5">
                 <ShieldCheck className="size-[22px] text-zinc-400" strokeWidth={1.5} />
                 <span className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100 group-active:text-zinc-500">Multi factor Authentication</span>
               </div>
               <ChevronRight className="size-[20px] text-zinc-300" strokeWidth={2} />
-            </div>
+            </Link>
             <Link to="/change-pin" className="flex items-center justify-between py-3 px-2 transition-colors group">
               <div className="flex items-center gap-3.5">
                 <Lock className="size-[22px] text-zinc-400" strokeWidth={1.5} />

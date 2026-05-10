@@ -28,9 +28,15 @@ class User(BaseModel, AbstractUser):
     email_verified_at = models.DateTimeField(null=True, blank=True)
     mfa_enabled = models.BooleanField(default=False)
     mfa_locked_until = models.DateTimeField(null=True, blank=True)
-    failed_mfa_attempts = models.PositiveSmallIntegerField(default=0)
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    last_failed_login_at = models.DateTimeField(null=True, blank=True)
+    device_fingerprint = models.CharField(max_length=255, blank=True)
+    mfa_totp_seed = models.CharField(max_length=32, null=True, blank=True)
+    mfa_enrollment_token = models.UUIDField(null=True, blank=True, unique=True)
     balance = models.BigIntegerField(default=0)
     pin = models.CharField(max_length=128, blank=True, null=True)
+    # Might deprecate this in favor of the code from the mfa totp seed
     otp_hash = models.CharField(max_length=128, blank=True, null=True)
     otp_expires_at = models.DateTimeField(null=True, blank=True)
 
@@ -45,6 +51,10 @@ class User(BaseModel, AbstractUser):
     @property
     def is_mfa_locked(self):
         return bool(self.mfa_locked_until and self.mfa_locked_until > timezone.now())
+
+    @property
+    def is_locked(self):
+        return bool(self.locked_until and self.locked_until > timezone.now())
 
     @property
     def role_label(self):

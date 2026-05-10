@@ -30,6 +30,13 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-device-id",
+    "x-mfa-token",
+]
+
 INSTALLED_APPS = [
     "accounts",
     "django.contrib.admin",
@@ -115,6 +122,8 @@ PASSWORD_HASHERS = [
 ]
 
 AUTH_USER_MODEL = "accounts.User"
+
+SENDER_EMAIL = "contact@fortunealebiosu.dev"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

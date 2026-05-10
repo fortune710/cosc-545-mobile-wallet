@@ -10,8 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 import { authService } from '@/services/auth-service'
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { signUpSchema } from '@/lib/schemas/auth'
 
 export function SignUpPage() {
     const [fullName, setFullName] = useState('')
@@ -20,13 +19,17 @@ export function SignUpPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [errorMessage, setErrorMessage] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [isRegistered, setIsRegistered] = useState(false)
+    const [enrollmentToken, setEnrollmentToken] = useState<string | null>(null)
 
-    const normalizedEmail = useMemo(() => email.trim().toLowerCase(), [email])
-    const emailIsValid = emailRegex.test(normalizedEmail)
-    const passwordIsValid = password.trim().length >= 12
-    const fullNameIsValid = fullName.trim().length >= 2
-    const formIsValid = emailIsValid && passwordIsValid && fullNameIsValid
+    const validation = useMemo(() => {
+        return signUpSchema.safeParse({ fullName, email, password })
+    }, [fullName, email, password])
+
+    const fullNameIsValid = fullName.length > 0 ? signUpSchema.shape.fullName.safeParse(fullName).success : true
+    const emailIsValid = email.length > 0 ? signUpSchema.shape.email.safeParse(email).success : true
+    const passwordIsValid = password.length > 0 ? signUpSchema.shape.password.safeParse(password).success : true
+    
+    const formIsValid = validation.success
     const canSubmit = formIsValid && !isSubmitting
 
     const handleSignUp = async (event: React.FormEvent) => {
@@ -40,8 +43,8 @@ export function SignUpPage() {
         setErrorMessage('')
 
         try {
-            await authService.signUp({ fullName, email, password })
-            setIsRegistered(true)
+            const response = await authService.signUp({ fullName, email, password })
+            setEnrollmentToken(response.mfa_enrollment_token)
         } catch (error: any) {
             const apiError = error.response?.data?.detail || error.response?.data?.email?.[0] || error.response?.data?.non_field_errors?.[0]
             setErrorMessage(apiError || 'Failed to create account. Please try again.')
@@ -50,7 +53,7 @@ export function SignUpPage() {
         }
     }
 
-    if (isRegistered) return <Navigate to="/login" replace />
+    if (enrollmentToken) return <Navigate to={`/mfa?token=${enrollmentToken}`} replace />
 
     return (
         <main className="min-h-svh bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white transition-colors duration-300">
@@ -81,6 +84,9 @@ export function SignUpPage() {
                                 className="h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm outline-none transition-all focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:border-zinc-600 dark:focus:ring-zinc-800/50"
                                 placeholder="John Doe"
                             />
+                            {fullName.length > 0 && !fullNameIsValid ? (
+                                <p className="mt-2 text-xs text-red-500">Full name must be at least 2 characters.</p>
+                            ) : null}
                         </div>
 
                         <div>

@@ -1,6 +1,5 @@
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from decimal import Decimal
 import re
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password

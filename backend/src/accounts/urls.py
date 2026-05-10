@@ -12,6 +12,8 @@ from accounts.views import (
     ChangePasswordView,
     EmailVerificationSendView,
     OtpCheckView,
+    MfaEnrollView,
+    MfaVerifyView,
 )
 
 urlpatterns = [
@@ -26,4 +28,6 @@ urlpatterns = [
     path("password/", ChangePasswordView.as_view(), name="auth-password-change"),
     path("verify/", EmailVerificationSendView.as_view(), name="auth-verify-send"),
     path("otp/check/", OtpCheckView.as_view(), name="auth-otp-check"),
+    path("mfa/enroll/", MfaEnrollView.as_view(), name="auth-mfa-enroll"),
+    path("mfa/verify/", MfaVerifyView.as_view(), name="auth-mfa-verify"),
 ]
