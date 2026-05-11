@@ -208,4 +208,11 @@ export const authService = {
   isAuthenticated() {
     return !!localStorage.getItem('accessToken')
   },
+
+  /**
+   * Returns the currently stored access token.
+   */
+  getAccessToken() {
+    return localStorage.getItem('accessToken')
+  },
 }

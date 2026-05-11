@@ -27,5 +27,17 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: "redis:latest"
+    expose:
+      - 6379
+    working_dir: /data
+    volumes:
+      - redis_data:/data
+    restart: "on-failure"
+    container_name: wallet_redis
+
+
 volumes:
   postgres_data:
+  redis_data:

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from accounts.models import User
+from accounts.models import AuthFlowToken, EmailVerificationToken, MfaRecoveryCode, Recipient, SessionRecord, User
 
 
 @admin.register(User)
@@ -80,3 +80,10 @@ class UserAdmin(DjangoUserAdmin):
     @admin.display(description="Role")
     def role_label(self, obj):
         return obj.get_role_display()
+
+
+admin.site.register(EmailVerificationToken)
+admin.site.register(AuthFlowToken)
+admin.site.register(SessionRecord)
+admin.site.register(MfaRecoveryCode)
+admin.site.register(Recipient)

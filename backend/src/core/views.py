@@ -5,6 +5,8 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config.constants import HEALTH_STATUS_OK, HEALTH_STATUS_UNAVAILABLE
+
 
 class HealthCheckView(APIView):
     authentication_classes = []
@@ -26,18 +28,18 @@ class HealthCheckView(APIView):
         ],
     )
     def get(self, request):
-        database_status = "ok"
+        database_status = HEALTH_STATUS_OK
 
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
         except OperationalError:
-            database_status = "unavailable"
+            database_status = HEALTH_STATUS_UNAVAILABLE
 
         return Response(
             {
-                "status": "ok",
+                "status": HEALTH_STATUS_OK,
                 "database": database_status,
             }
         )

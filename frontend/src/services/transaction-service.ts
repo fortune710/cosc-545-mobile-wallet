@@ -95,14 +95,4 @@ export const transactionService = {
     }
   },
 
-  async getNotifications(page = 1) {
-    logger.info({ page }, 'Fetching notifications')
-    try {
-      const response = await api.get('/api/notifications/', { params: { page, page_size: 50 } })
-      return response.data
-    } catch (error: any) {
-      logger.error({ error }, 'Failed to fetch notifications')
-      throw authService.handleApiError(error)
-    }
-  },
 }

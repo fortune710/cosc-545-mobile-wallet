@@ -17,6 +17,10 @@ from notifications.utils import (
     notify_first_time_large_transaction,
     notify_high_frequency_transactions,
 )
+from wallet.constants import (
+    FIRST_TIME_LARGE_TRANSACTION_THRESHOLD_CENTS,
+    HIGH_FREQUENCY_TRANSACTION_THRESHOLD,
+)
 from wallet.models import PaymentIntent, PaymentRequest, SupervisoryApproval, Transaction
 from wallet.serializers import (
     FundingSerializer,
@@ -114,9 +118,9 @@ class PaymentIntentConfirmView(APIView):
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         log_event(WalletEvent.PAYMENT_CONFIRMED, "SUCCESS", user=request.user, request=request, metadata={"payment_intent_id": str(intent.id), "transaction_id": str(sender_txn.id)})
-        if was_first_time and abs(sender_txn.amount) > 2500:
+        if was_first_time and abs(sender_txn.amount) > FIRST_TIME_LARGE_TRANSACTION_THRESHOLD_CENTS:
             notify_first_time_large_transaction(request.user, intent.recipient, abs(sender_txn.amount))
-        if recent_successful_payment_count(request.user) > 5:
+        if recent_successful_payment_count(request.user) > HIGH_FREQUENCY_TRANSACTION_THRESHOLD:
             notify_high_frequency_transactions(request.user)
         return Response(
             {

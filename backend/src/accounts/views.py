@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import pyotp
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
@@ -13,6 +11,15 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import AuthFlowToken, EmailVerificationToken, SessionRecord
+from accounts.constants import (
+    FAILED_LOGIN_NOTIFICATION_THRESHOLD,
+    LOCKOUT_ATTEMPT_THRESHOLD,
+    LOCKOUT_DURATION,
+    LOCKOUT_WINDOW,
+    MFA_ISSUER_NAME,
+    RECIPIENT_DEFAULT_PAGE_SIZE,
+    USER_SEARCH_MIN_QUERY_LENGTH,
+)
 from accounts.permissions import IsVerifiedMfaAuthenticated
 from accounts.models import Recipient
 from accounts.serializers import (
@@ -49,8 +56,6 @@ from notifications.utils import notify_failed_login_attempts, notify_new_device,
 
 
 User = get_user_model()
-LOCKOUT_WINDOW = timedelta(minutes=15)
-LOCKOUT_DURATION = timedelta(minutes=30)
 
 
 def get_client_ip(request):
@@ -63,7 +68,7 @@ def register_failed_login(user: User):
         user.failed_login_attempts = 0
     user.failed_login_attempts += 1
     user.last_failed_login_at = now
-    if user.failed_login_attempts >= 5:
+    if user.failed_login_attempts >= LOCKOUT_ATTEMPT_THRESHOLD:
         user.locked_until = now + LOCKOUT_DURATION
     user.save(update_fields=["failed_login_attempts", "last_failed_login_at", "locked_until"])
     return user.failed_login_attempts
@@ -159,7 +164,7 @@ class LoginStartView(APIView):
         if not user or not check_password(password, user.password):
             if user:
                 attempts = register_failed_login(user)
-                if attempts >= 3:
+                if attempts >= FAILED_LOGIN_NOTIFICATION_THRESHOLD:
                     notify_failed_login_attempts(user, attempts)
             log_event(AccountEvent.LOGIN_FAILED, "FAILED", request=request, metadata={"result": "invalid_credentials"})
             return generic_response
@@ -219,7 +224,7 @@ class LoginVerifyMfaView(APIView):
             attempts = register_failed_login(user)
             flow.failed_attempts += 1
             flow.save(update_fields=["failed_attempts"])
-            if attempts >= 3:
+            if attempts >= FAILED_LOGIN_NOTIFICATION_THRESHOLD:
                 notify_failed_login_attempts(user, attempts)
             log_event(AccountEvent.MFA_VERIFY_FAILED, "FAILED", user=user, request=request)
             return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
@@ -373,7 +378,7 @@ class MfaEnrollView(APIView):
         totp = pyotp.TOTP(user.mfa_totp_seed)
         return Response(
             {
-                "provisioning_url": totp.provisioning_uri(name=user.email, issuer_name="SecureWallet"),
+                "provisioning_url": totp.provisioning_uri(name=user.email, issuer_name=MFA_ISSUER_NAME),
                 "secret": user.mfa_totp_seed,
                 "mfa_enabled": user.mfa_enabled,
             }
@@ -408,7 +413,7 @@ class RecipientListCreateView(APIView):
                 | models.Q(contact__last_name__icontains=q)
             )
         page = int(request.query_params.get("page", 1))
-        page_size = int(request.query_params.get("page_size", 20))
+        page_size = int(request.query_params.get("page_size", RECIPIENT_DEFAULT_PAGE_SIZE))
         start = (page - 1) * page_size
         total = qs.count()
         results = RecipientSerializer(qs[start : start + page_size], many=True).data
@@ -443,7 +448,7 @@ class UserSearchView(APIView):
 
     def get(self, request):
         q = request.query_params.get("q", "").strip()
-        if len(q) < 2:
+        if len(q) < USER_SEARCH_MIN_QUERY_LENGTH:
             return Response([])
         existing_contact_ids = Recipient.objects.filter(owner=request.user).values_list("contact_id", flat=True)
         users = (

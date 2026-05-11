@@ -9,3 +9,8 @@ django-simple-history==3.8.0
 python-dotenv==1.0.1
 pyotp==2.9.0
 postmark-python==0.2.4
+channels==4.3.2
+channels-redis==4.3.0
+daphne==4.2.1
+django-ipware==7.0.1
+django-redis==6.0.0

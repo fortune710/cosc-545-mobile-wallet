@@ -1,0 +1,15 @@
+DISPOSABLE_EMAIL_DOMAINS = {
+    "10minutemail.com",
+    "20minutemail.com",
+    "dispostable.com",
+    "emailondeck.com",
+    "fakeinbox.com",
+    "guerrillamail.com",
+    "maildrop.cc",
+    "mailinator.com",
+    "temp-mail.org",
+    "tempmailo.com",
+    "tempmail.com",
+    "trashmail.com",
+    "yopmail.com",
+}

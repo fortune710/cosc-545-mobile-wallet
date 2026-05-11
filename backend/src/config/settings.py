@@ -2,6 +2,19 @@ from datetime import timedelta
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
+
+from config.constants import (
+    CONSOLE_MAIL_DELIVERY_MODE,
+    DEFAULT_CHANNEL_LAYER_ALIAS,
+    DEFAULT_EMAIL_BACKEND,
+    DEFAULT_FROM_NAME,
+    DEFAULT_FRONTEND_APP_URL,
+    DEFAULT_REDIS_URL,
+    DEFAULT_SENDER_EMAIL,
+    MAILTRAP_MAIL_DELIVERY_MODE,
+)
+
 
 load_dotenv()
 
@@ -30,8 +43,6 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-from corsheaders.defaults import default_headers
-
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-device-id",
     "x-mfa-token",
@@ -40,6 +51,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 INSTALLED_APPS = [
     "accounts",
     "wallet",
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -124,8 +136,9 @@ PASSWORD_HASHERS = [
 
 AUTH_USER_MODEL = "accounts.User"
 
-SENDER_EMAIL = "contact@fortunealebiosu.dev"
-FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:5173").rstrip("/")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", DEFAULT_SENDER_EMAIL)
+DEFAULT_FROM_NAME = os.getenv("DEFAULT_FROM_NAME", DEFAULT_FROM_NAME)
+FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", DEFAULT_FRONTEND_APP_URL).rstrip("/")
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -176,7 +189,28 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
-EMAIL_BACKEND = os.getenv(
-    "DJANGO_EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend",
-)
+MAIL_DELIVERY_MODE = os.getenv("MAIL_DELIVERY_MODE", CONSOLE_MAIL_DELIVERY_MODE).strip().lower()
+if MAIL_DELIVERY_MODE not in {CONSOLE_MAIL_DELIVERY_MODE, MAILTRAP_MAIL_DELIVERY_MODE}:
+    raise ValueError("MAIL_DELIVERY_MODE must be 'console' or 'mailtrap'")
+
+EMAIL_BACKEND = DEFAULT_EMAIL_BACKEND
+MAILTRAP_API_KEY = os.getenv("MAILTRAP_API_KEY", "")
+REDIS_URL = os.getenv("REDIS_URL", DEFAULT_REDIS_URL)
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+CHANNEL_LAYERS = {
+    DEFAULT_CHANNEL_LAYER_ALIAS: {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    }
+}

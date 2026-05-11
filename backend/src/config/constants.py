@@ -1,0 +1,11 @@
+DEFAULT_SENDER_EMAIL = "contact@fortunealebiosu.dev"
+DEFAULT_FROM_NAME = "SecureWallet"
+DEFAULT_FRONTEND_APP_URL = "http://localhost:5173"
+DEFAULT_EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+CONSOLE_MAIL_DELIVERY_MODE = "console"
+MAILTRAP_MAIL_DELIVERY_MODE = "mailtrap"
+DEFAULT_REDIS_URL = "redis://redis:6379/0"
+DEFAULT_CHANNEL_LAYER_ALIAS = "default"
+
+HEALTH_STATUS_OK = "ok"
+HEALTH_STATUS_UNAVAILABLE = "unavailable"

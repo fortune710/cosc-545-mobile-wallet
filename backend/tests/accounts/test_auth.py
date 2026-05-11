@@ -49,6 +49,20 @@ class AuthenticationTests(APITestCase):
         self.assertIn("http://localhost:5173/verify-email?token=", mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].subject, "Confirm your SecureWallet email")
 
+    def test_register_rejects_disposable_email_domain(self):
+        response = self.client.post(
+            reverse("auth-register"),
+            {
+                "email": "user@mailinator.com",
+                "password": "VeryStrongPassword123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+        self.assertFalse(User.objects.filter(email="user@mailinator.com").exists())
+
     def test_verify_email_activates_user(self):
         user = User.objects.create_user(
             email="verify@example.com",
@@ -258,3 +272,38 @@ class AuthenticationTests(APITestCase):
         self.assertIsNone(user.email_verified_at)
         self.assertFalse(user.is_active)
         self.assertTrue(EmailVerificationToken.objects.filter(user=user, used_at__isnull=True).exists())
+
+    def test_profile_email_change_rejects_disposable_email(self):
+        user = User.objects.create_user(
+            email="profile.safe@example.com",
+            password="VeryStrongPassword123!",
+            is_active=True,
+            mfa_enabled=True,
+            mfa_totp_seed=pyotp.random_base32(),
+        )
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=["email_verified_at"])
+
+        login_start = self.client.post(
+            reverse("auth-login-start"),
+            {"email": user.email, "password": "VeryStrongPassword123!"},
+            format="json",
+        )
+        verify_response = self.client.post(
+            reverse("auth-login-verify-mfa"),
+            {"flow_token": login_start.data["flow_token"], "mfa_code": pyotp.TOTP(user.mfa_totp_seed).now()},
+            format="json",
+            HTTP_X_DEVICE_ID="device-email-disposable",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {verify_response.data['access']}")
+
+        response = self.client.patch(
+            reverse("auth-me"),
+            {"email": "profile@mailinator.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+        user.refresh_from_db()
+        self.assertEqual(user.email, "profile.safe@example.com")

@@ -43,8 +43,18 @@ export type NotificationItem = {
   title: string
   description: string
   createdAt: string
+  userId?: string
   isRead?: boolean // This will be calculated on the client
   actionUrl?: string
+}
+
+export type ApiNotification = {
+  id: string
+  title: string
+  body: string
+  type: NotificationType
+  user: string
+  created_at: string
 }
 
 export type SignInValues = z.infer<typeof signInSchema>

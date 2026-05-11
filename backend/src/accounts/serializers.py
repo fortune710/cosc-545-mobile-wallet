@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from accounts.models import Recipient
+from accounts.validators import is_disposable_email
 
 User = get_user_model()
 
@@ -58,6 +59,12 @@ class RegisterSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages)
         return value
+
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if is_disposable_email(normalized):
+            raise serializers.ValidationError("Disposable email addresses are not allowed.")
+        return normalized
 
 
 class GenericDetailSerializer(serializers.Serializer):
@@ -161,3 +168,9 @@ class ProfileUpdateSerializer(serializers.Serializer):
     state = serializers.CharField(required=False, allow_blank=True, max_length=120)
     postal_code = serializers.CharField(required=False, allow_blank=True, max_length=32)
     country = serializers.CharField(required=False, allow_blank=True, max_length=2)
+
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if is_disposable_email(normalized):
+            raise serializers.ValidationError("Disposable email addresses are not allowed.")
+        return normalized

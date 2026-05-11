@@ -8,15 +8,35 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.services import receipt_signature
-from notifications.models import Notification, NotificationType
+from notifications.constants import (
+    NOTIFICATION_BODY_PAYMENT_RECEIVED,
+    NOTIFICATION_BODY_PAYMENT_SENT,
+    NOTIFICATION_BODY_REQUEST_CREATED,
+    NOTIFICATION_BODY_REQUEST_DECLINED,
+    NOTIFICATION_BODY_REQUEST_EXPIRED,
+    NOTIFICATION_BODY_REQUEST_APPROVED,
+    NOTIFICATION_BODY_REQUEST_RECEIVED,
+    NOTIFICATION_TITLE_PAYMENT_RECEIVED,
+    NOTIFICATION_TITLE_PAYMENT_SENT,
+    NOTIFICATION_TITLE_REQUEST_DECLINED,
+    NOTIFICATION_TITLE_REQUEST_CREATED,
+    NOTIFICATION_TITLE_REQUEST_EXPIRED,
+    NOTIFICATION_TITLE_REQUEST_APPROVED,
+    NOTIFICATION_TITLE_REQUEST_RECEIVED,
+)
+from notifications.models import NotificationType
+from notifications.services import create_notification
+from wallet.constants import (
+    MAX_FUNDING_CENTS,
+    MAX_PAYMENT_CENTS,
+    MIN_FUNDING_CENTS,
+    MIN_PAYMENT_CENTS,
+    PAYMENT_REQUEST_EXPIRY,
+)
 from wallet.models import PaymentIntent, PaymentRequest, Transaction, TransactionReceipt, Wallet
 
 
 User = get_user_model()
-MIN_PAYMENT_CENTS = 1
-MAX_PAYMENT_CENTS = 5000
-MIN_FUNDING_CENTS = 100
-MAX_FUNDING_CENTS = 50000
 
 
 def decimal_to_cents(value: Decimal) -> int:
@@ -166,21 +186,23 @@ def confirm_payment_intent(intent: PaymentIntent):
         intent.confirmed_at = timezone.now()
         intent.save(update_fields=["status", "confirmed_at"])
 
-        Notification.objects.bulk_create(
-            [
-                Notification(
-                    user=intent.sender,
-                    title="Payment sent",
-                    body=f"You sent ${intent.amount / 100:.2f} to {intent.recipient.display_name or intent.recipient.email}.",
-                    type=NotificationType.PAYMENT_SENT,
-                ),
-                Notification(
-                    user=intent.recipient,
-                    title="Payment received",
-                    body=f"You received ${intent.amount / 100:.2f} from {intent.sender.display_name or intent.sender.email}.",
-                    type=NotificationType.PAYMENT_RECEIVED,
-                ),
-            ]
+        create_notification(
+            user=intent.sender,
+            title=NOTIFICATION_TITLE_PAYMENT_SENT,
+            body=NOTIFICATION_BODY_PAYMENT_SENT.format(
+                amount=intent.amount / 100,
+                recipient=intent.recipient.display_name or intent.recipient.email,
+            ),
+            notification_type=NotificationType.PAYMENT_SENT,
+        )
+        create_notification(
+            user=intent.recipient,
+            title=NOTIFICATION_TITLE_PAYMENT_RECEIVED,
+            body=NOTIFICATION_BODY_PAYMENT_RECEIVED.format(
+                amount=intent.amount / 100,
+                sender=intent.sender.display_name or intent.sender.email,
+            ),
+            notification_type=NotificationType.PAYMENT_RECEIVED,
         )
 
     return intent, sender_txn, recipient_txn, receipt
@@ -199,23 +221,24 @@ def create_payment_request(requester: User, target_identifier: str, amount: int,
         target_user=target_user,
         amount=amount,
         memo=memo,
-        expires_at=timezone.now() + timedelta(hours=72),
+        expires_at=timezone.now() + PAYMENT_REQUEST_EXPIRY,
     )
-    Notification.objects.bulk_create(
-        [
-            Notification(
-                user=target_user,
-                title="Payment request received",
-                body=f"{requester.display_name or requester.email} requested ${amount / 100:.2f}.",
-                type=NotificationType.SYSTEM,
-            ),
-            Notification(
-                user=requester,
-                title="Payment request created",
-                body=f"Your request to {target_user.display_name or target_user.email} is pending.",
-                type=NotificationType.SYSTEM,
-            ),
-        ]
+    create_notification(
+        user=target_user,
+        title=NOTIFICATION_TITLE_REQUEST_RECEIVED,
+        body=NOTIFICATION_BODY_REQUEST_RECEIVED.format(
+            requester=requester.display_name or requester.email,
+            amount=amount / 100,
+        ),
+        notification_type=NotificationType.SYSTEM,
+    )
+    create_notification(
+        user=requester,
+        title=NOTIFICATION_TITLE_REQUEST_CREATED,
+        body=NOTIFICATION_BODY_REQUEST_CREATED.format(
+            target_user=target_user.display_name or target_user.email,
+        ),
+        notification_type=NotificationType.SYSTEM,
     )
     return payment_request
 
@@ -229,11 +252,11 @@ def expire_requests():
         payment_request.status = PaymentRequest.Status.EXPIRED
         payment_request.resolved_at = now
         payment_request.save(update_fields=["status", "resolved_at"])
-        Notification.objects.create(
+        create_notification(
             user=payment_request.requester,
-            title="Payment request expired",
-            body="A payment request expired without action.",
-            type=NotificationType.SYSTEM,
+            title=NOTIFICATION_TITLE_REQUEST_EXPIRED,
+            body=NOTIFICATION_BODY_REQUEST_EXPIRED,
+            notification_type=NotificationType.SYSTEM,
         )
     return expired
 
@@ -260,11 +283,13 @@ def approve_request(payment_request: PaymentRequest):
     payment_request.resolved_at = timezone.now()
     payment_request.approved_transaction = sender_txn
     payment_request.save(update_fields=["status", "resolved_at", "approved_transaction"])
-    Notification.objects.create(
+    create_notification(
         user=payment_request.requester,
-        title="Payment request approved",
-        body=f"{payment_request.target_user.display_name or payment_request.target_user.email} approved your request.",
-        type=NotificationType.SYSTEM,
+        title=NOTIFICATION_TITLE_REQUEST_APPROVED,
+        body=NOTIFICATION_BODY_REQUEST_APPROVED.format(
+            target_user=payment_request.target_user.display_name or payment_request.target_user.email,
+        ),
+        notification_type=NotificationType.SYSTEM,
     )
     return confirmed_intent, sender_txn, recipient_txn
 
@@ -276,11 +301,13 @@ def decline_request(payment_request: PaymentRequest):
     payment_request.status = PaymentRequest.Status.DECLINED
     payment_request.resolved_at = timezone.now()
     payment_request.save(update_fields=["status", "resolved_at"])
-    Notification.objects.create(
+    create_notification(
         user=payment_request.requester,
-        title="Payment request declined",
-        body=f"{payment_request.target_user.display_name or payment_request.target_user.email} declined your request.",
-        type=NotificationType.SYSTEM,
+        title=NOTIFICATION_TITLE_REQUEST_DECLINED,
+        body=NOTIFICATION_BODY_REQUEST_DECLINED.format(
+            target_user=payment_request.target_user.display_name or payment_request.target_user.email,
+        ),
+        notification_type=NotificationType.SYSTEM,
     )
     return payment_request
 

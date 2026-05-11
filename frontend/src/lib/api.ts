@@ -1,10 +1,9 @@
 import axios from 'axios'
 import logger from './logger'
-
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+import { config } from './app-config'
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: config.apiUrl,
   headers: {
     'Content-Type': 'application/json',
   },

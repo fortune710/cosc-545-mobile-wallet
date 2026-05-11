@@ -2,26 +2,24 @@ import hashlib
 import hmac
 import secrets
 import string
-from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
-from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from accounts.email import send_verification_email
+from accounts.constants import (
+    AUTH_FLOW_TTL,
+    EMAIL_VERIFICATION_TTL,
+    RECOVERY_CODE_COUNT,
+    RECOVERY_CODE_LENGTH,
+    SESSION_TTL,
+)
 from accounts.models import AuthFlowToken, EmailVerificationToken, MfaRecoveryCode, SessionRecord, User
+from notifications.services import send_verification_email
 from wallet.models import Wallet
-
-
-EMAIL_VERIFICATION_TTL = timedelta(hours=24)
-AUTH_FLOW_TTL = timedelta(minutes=10)
-SESSION_TTL = timedelta(hours=8)
-RECOVERY_CODE_LENGTH = 16
-RECOVERY_CODE_COUNT = 8
-
 
 def generate_token(length=48):
     alphabet = string.ascii_letters + string.digits
@@ -35,17 +33,6 @@ def hash_value(value: str) -> str:
 def receipt_signature(payload: str) -> str:
     secret = getattr(settings, "AUDIT_HMAC_SECRET", None) or settings.SECRET_KEY
     return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-
-
-def send_simple_email(subject: str, message: str, recipient: str, html_message: str | None = None):
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=getattr(settings, "SENDER_EMAIL", "no-reply@securewallet.local"),
-        recipient_list=[recipient],
-        html_message=html_message,
-        fail_silently=True,
-    )
 
 
 def issue_email_verification(user: User):
