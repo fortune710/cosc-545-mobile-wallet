@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import {
     IconAlertTriangle,
+    IconCircleCheck,
     IconEye,
     IconEyeOff,
+    IconMail,
 } from '@tabler/icons-react'
-import { Navigate, Link } from 'react-router-dom'
-import { config } from '@/lib/app-config'
+import { Link } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
+import { AuthLayout } from '@/components/auth/auth-layout'
 import { authService } from '@/services/auth-service'
 import { signUpSchema } from '@/lib/schemas/auth'
 
@@ -19,148 +20,162 @@ export function SignUpPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [errorMessage, setErrorMessage] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [enrollmentToken, setEnrollmentToken] = useState<string | null>(null)
+    const [registered, setRegistered] = useState(false)
 
-    const validation = useMemo(() => {
-        return signUpSchema.safeParse({ fullName, email, password })
-    }, [fullName, email, password])
-
+    const validation = useMemo(() => signUpSchema.safeParse({ fullName, email, password }), [fullName, email, password])
     const fullNameIsValid = fullName.length > 0 ? signUpSchema.shape.fullName.safeParse(fullName).success : true
     const emailIsValid = email.length > 0 ? signUpSchema.shape.email.safeParse(email).success : true
     const passwordIsValid = password.length > 0 ? signUpSchema.shape.password.safeParse(password).success : true
-    
-    const formIsValid = validation.success
-    const canSubmit = formIsValid && !isSubmitting
+    const canSubmit = validation.success && !isSubmitting
 
     const handleSignUp = async (event: React.FormEvent) => {
         event.preventDefault()
-
-        if (!canSubmit) {
-            return
-        }
+        if (!canSubmit) return
 
         setIsSubmitting(true)
         setErrorMessage('')
 
         try {
-            const response = await authService.signUp({ fullName, email, password })
-            setEnrollmentToken(response.mfa_enrollment_token)
+            await authService.signUp({ fullName, email, password })
+            setRegistered(true)
         } catch (error: any) {
-            const apiError = error.response?.data?.detail || error.response?.data?.email?.[0] || error.response?.data?.non_field_errors?.[0]
+            const apiError =
+                error.response?.data?.detail ||
+                error.response?.data?.email?.[0] ||
+                error.response?.data?.non_field_errors?.[0]
             setErrorMessage(apiError || 'Failed to create account. Please try again.')
         } finally {
             setIsSubmitting(false)
         }
     }
 
-    if (enrollmentToken) return <Navigate to={`/mfa?token=${enrollmentToken}`} replace />
-
     return (
-        <main className="min-h-svh bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white transition-colors duration-300">
-            <div className="mx-auto flex min-h-svh w-full max-w-md flex-col px-6 pt-20 pb-12 sm:px-8">
-                <div className="flex flex-1 flex-col">
-                    <div className="mb-10 flex items-center justify-center text-zinc-400 dark:text-zinc-500">
-                        <p className="text-xs font-bold tracking-[0.2em] uppercase">{config.appName}</p>
-                    </div>
-
-                    <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                        Create account.
-                    </h1>
-                    <p className="mt-3 text-[16px] text-zinc-500 dark:text-zinc-400">
-                        Join {config.appName} to start sending micro-payments.
-                    </p>
-
-                    <form onSubmit={handleSignUp} className="mt-10 space-y-5" noValidate>
-                        <div>
-                            <Label htmlFor="fullName" className="mb-2 block text-[14px] font-medium text-zinc-700 dark:text-zinc-300">
-                                Full Name
-                            </Label>
-                            <Input
-                                id="fullName"
-                                type="text"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                autoComplete="name"
-                                className="h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm outline-none transition-all focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:border-zinc-600 dark:focus:ring-zinc-800/50"
-                                placeholder="John Doe"
-                            />
-                            {fullName.length > 0 && !fullNameIsValid ? (
-                                <p className="mt-2 text-xs text-red-500">Full name must be at least 2 characters.</p>
-                            ) : null}
+        <AuthLayout>
+            <div className="flex flex-1 flex-col justify-center px-6 py-12 sm:px-10 md:px-12 lg:px-16 xl:px-20">
+                {registered ? (
+                    <div className="flex flex-col items-center text-center">
+                        <div className="grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+                            <IconMail size={32} strokeWidth={1.5} />
                         </div>
-
-                        <div>
-                            <Label htmlFor="email" className="mb-2 block text-[14px] font-medium text-zinc-700 dark:text-zinc-300">
-                                Email
-                            </Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                autoComplete="email"
-                                className="h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm outline-none transition-all focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:border-zinc-600 dark:focus:ring-zinc-800/50"
-                                placeholder="name@example.com"
-                            />
-                            {email.length > 0 && !emailIsValid ? (
-                                <p className="mt-2 text-xs text-red-500">Please enter a valid email address.</p>
-                            ) : null}
+                        <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+                            Check your inbox
+                        </h1>
+                        <p className="mt-3 max-w-xs text-[15px] text-zinc-500 dark:text-zinc-400">
+                            We sent a verification link to{' '}
+                            <strong className="font-semibold text-zinc-700 dark:text-zinc-200">{email}</strong>.
+                        </p>
+                        <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-[13px] text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
+                            <IconCircleCheck size={16} className="mt-0.5 shrink-0" />
+                            <span>After verifying, sign in to complete MFA setup.</span>
                         </div>
-
-                        <div>
-                            <Label htmlFor="password" className="mb-2 block text-[14px] font-medium text-zinc-700 dark:text-zinc-300">
-                                Password
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    autoComplete="new-password"
-                                    className="h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:border-zinc-600 dark:focus:ring-zinc-800/50"
-                                    placeholder="Minimum 12 characters"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword((prev) => !prev)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                >
-                                    {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                </button>
-                            </div>
-                            {password.length > 0 && !passwordIsValid ? (
-                                <p className="mt-2 text-xs text-red-500">Password must be at least 12 characters.</p>
-                            ) : null}
-                        </div>
-
-                        {errorMessage ? (
-                            <div className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400">
-                                <IconAlertTriangle size={18} />
-                                <span>{errorMessage}</span>
-                            </div>
-                        ) : null}
-
-                        <button
-                            type="submit"
-                            disabled={!canSubmit}
-                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 text-[15px] font-semibold text-white transition-all enabled:hover:bg-zinc-800 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400 dark:bg-white dark:text-zinc-950 dark:enabled:hover:bg-zinc-200 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600"
+                        <Link
+                            to="/login"
+                            className="mt-8 flex h-11 w-full items-center justify-center rounded-xl bg-violet-600 text-[15px] font-semibold text-white shadow-sm transition-all hover:bg-violet-700 active:scale-[0.98]"
                         >
-                            {isSubmitting ? 'Creating account...' : 'Create Account'}
-                        </button>
-                    </form>
+                            Go to Sign In
+                        </Link>
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-8">
+                            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+                                Create account.
+                            </h1>
+                            <p className="mt-2 text-[15px] text-zinc-500 dark:text-zinc-400">
+                                Create your internal wallet and move money faster with verified access from day one.
+                            </p>
+                        </div>
 
-                    <footer className='mt-auto pt-10'>
-                        <p className="text-center text-[15px] text-zinc-500 dark:text-zinc-400">
+                        <form onSubmit={handleSignUp} className="space-y-5" noValidate>
+                            <div>
+                                <Label htmlFor="fullName" className="mb-1.5 block text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                    Full name
+                                </Label>
+                                <Input
+                                    id="fullName"
+                                    type="text"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    autoComplete="name"
+                                    className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-white dark:focus:border-violet-600 dark:focus:bg-zinc-800"
+                                    placeholder="John Doe"
+                                />
+                                {fullName.length > 0 && !fullNameIsValid && (
+                                    <p className="mt-1.5 text-[12px] text-red-500">Full name must be at least 2 characters.</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <Label htmlFor="email" className="mb-1.5 block text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                    Email address
+                                </Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    autoComplete="email"
+                                    className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-white dark:focus:border-violet-600 dark:focus:bg-zinc-800"
+                                    placeholder="name@example.com"
+                                />
+                                {email.length > 0 && !emailIsValid && (
+                                    <p className="mt-1.5 text-[12px] text-red-500">Please enter a valid email address.</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <Label htmlFor="password" className="mb-1.5 block text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                    Password
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                        className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 pr-11 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-white dark:focus:border-violet-600 dark:focus:bg-zinc-800"
+                                        placeholder="Minimum 12 characters"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((p) => !p)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+                                    </button>
+                                </div>
+                                {password.length > 0 && !passwordIsValid && (
+                                    <p className="mt-1.5 text-[12px] text-red-500">Password must be at least 12 characters.</p>
+                                )}
+                            </div>
+
+                            {errorMessage && (
+                                <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                                    <IconAlertTriangle size={16} className="mt-0.5 shrink-0" />
+                                    <span>{errorMessage}</span>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={!canSubmit}
+                                className="flex h-11 w-full items-center justify-center rounded-xl bg-violet-600 text-[15px] font-semibold text-white shadow-sm transition-all enabled:hover:bg-violet-700 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isSubmitting ? 'Creating account…' : 'Create Account'}
+                            </button>
+                        </form>
+
+                        <p className="mt-8 text-center text-[14px] text-zinc-500 dark:text-zinc-400">
                             Already have an account?{' '}
-                            <Link to="/login" className="font-semibold text-zinc-900 hover:underline dark:text-white">
+                            <Link to="/login" className="font-semibold text-violet-600 hover:underline dark:text-violet-400">
                                 Sign In
                             </Link>
                         </p>
-                    </footer>
-                </div>
+                    </>
+                )}
             </div>
-        </main>
+        </AuthLayout>
     )
 }

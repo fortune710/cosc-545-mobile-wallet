@@ -1,38 +1,28 @@
-import { useMemo, useState } from "react"
-import { mockTransactions } from "@/lib/transactions"
-import type { Transaction, Filters } from "@/lib/types"
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { transactionService } from '@/services/transaction-service'
+import { queryKeys } from '@/lib/query-keys'
+import type { Transaction, Filters, TransactionFilters } from '@/lib/types'
+import { authService } from '@/services/auth-service'
 
 export const defaultFilters: Filters = {
-  dateFrom: "",
-  dateTo: "",
+  dateFrom: '',
+  dateTo: '',
   types: [],
-  amountMin: "",
-  amountMax: "",
+  amountMin: '',
+  amountMax: '',
 }
 
-function matchesFilters(transaction: Transaction, filters: Filters) {
-  const txDate = Date.parse(transaction.dateTimeUtc)
-  const fromUtc = filters.dateFrom ? Date.parse(`${filters.dateFrom}T00:00:00Z`) : null
-  const toUtc = filters.dateTo ? Date.parse(`${filters.dateTo}T23:59:59Z`) : null
-
-  if (fromUtc !== null && txDate < fromUtc) return false
-  if (toUtc !== null && txDate > toUtc) return false
-  if (filters.types.length > 0 && !filters.types.includes(transaction.type)) return false
-
-  const min = filters.amountMin ? Number(filters.amountMin) : null
-  const max = filters.amountMax ? Number(filters.amountMax) : null
-  const absoluteAmount = Math.abs(transaction.amount)
-
-  if (min !== null && !Number.isNaN(min) && absoluteAmount < min) return false
-  if (max !== null && !Number.isNaN(max) && absoluteAmount > max) return false
-
-  return true
+function mapTypeToLocal(apiType: string): Transaction['type'] {
+  if (apiType === 'payment_sent') return 'sent'
+  if (apiType === 'payment_received' || apiType === 'funding' || apiType === 'request_payment') return 'received'
+  return 'sent'
 }
 
-function sortByNewest(transactions: Transaction[]) {
-  return [...transactions].sort(
-    (a, b) => Date.parse(b.dateTimeUtc) - Date.parse(a.dateTimeUtc)
-  )
+function mapStatusToLocal(apiStatus: string): Transaction['status'] {
+  if (apiStatus === 'completed') return 'completed'
+  if (apiStatus === 'pending') return 'pending'
+  return 'failed'
 }
 
 export function useTransactionHistoryFilters() {
@@ -55,37 +45,47 @@ export function useTransactionHistoryFilters() {
     setFilters(defaultFilters)
   }
 
-  return {
-    filters,
-    draftFilters,
-    setDraftFilters,
-    applyFilters,
-    clearFilters,
-    filtersActive,
-  }
+  return { filters, draftFilters, setDraftFilters, applyFilters, clearFilters, filtersActive }
 }
 
 export function useTransactionHistory(filters: Filters) {
-  const transactions = useMemo(
-    () => sortByNewest(mockTransactions).filter((tx) => matchesFilters(tx, filters)),
-    [filters]
-  )
+  const apiFilters: TransactionFilters = {
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
+    transactionType: filters.types.length === 1 ? (filters.types[0] === 'sent' ? 'payment_sent' : 'payment_received') : undefined,
+    amountMin: filters.amountMin || undefined,
+    amountMax: filters.amountMax || undefined,
+    pageSize: 100,
+  }
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: queryKeys.transactions(apiFilters),
+    queryFn: () => transactionService.getTransactions(apiFilters),
+    enabled: authService.isAuthenticated(),
+  })
+
+  const transactions: Transaction[] = useMemo(() => {
+    if (!data?.results) return []
+    return data.results.map((tx) => ({
+      id: tx.id,
+      dateTimeUtc: tx.date_time_utc,
+      type: mapTypeToLocal(tx.type),
+      counterpartyDisplayName: tx.counterparty_display_name || 'Unknown',
+      amount: Math.round(parseFloat(tx.amount) * 100),
+      memo: tx.memo,
+      status: mapStatusToLocal(tx.status),
+    }))
+  }, [data])
 
   const todayTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
-      const now = new Date()
-      const utcToday = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`
-      return tx.dateTimeUtc.startsWith(utcToday)
-    })
+    const now = new Date()
+    const utcToday = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+    return transactions.filter((tx) => tx.dateTimeUtc.startsWith(utcToday))
   }, [transactions])
 
   const olderTransactions = useMemo(() => {
-    return transactions.filter((tx) => !todayTransactions.some((todayTx) => todayTx.id === tx.id))
+    return transactions.filter((tx) => !todayTransactions.some((t) => t.id === tx.id))
   }, [transactions, todayTransactions])
 
-  return {
-    transactions,
-    todayTransactions,
-    olderTransactions,
-  }
+  return { transactions, todayTransactions, olderTransactions, isLoading, error }
 }

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
@@ -59,3 +60,118 @@ class User(BaseModel, AbstractUser):
     @property
     def role_label(self):
         return self.get_role_display()
+
+    @property
+    def is_email_verified(self):
+        return bool(self.email_verified_at)
+
+
+class EmailVerificationToken(BaseModel):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="email_verification_tokens",
+    )
+    token = models.CharField(max_length=128, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "email_verification_tokens"
+        ordering = ["-datetime_created"]
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_usable(self):
+        return self.used_at is None and not self.is_expired
+
+
+class AuthFlowToken(BaseModel):
+    class Purpose(models.TextChoices):
+        MFA_LOGIN = "mfa_login", "MFA Login"
+        MFA_SETUP = "mfa_setup", "MFA Setup"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="auth_flow_tokens",
+    )
+    token = models.CharField(max_length=128, unique=True, db_index=True)
+    purpose = models.CharField(max_length=20, choices=Purpose.choices)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = "auth_flow_tokens"
+        ordering = ["-datetime_created"]
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_usable(self):
+        return self.used_at is None and not self.is_expired
+
+
+class SessionRecord(BaseModel):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+    )
+    session_key = models.CharField(max_length=64, unique=True, db_index=True)
+    refresh_jti = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    invalidated_at = models.DateTimeField(null=True, blank=True)
+    device_id = models.CharField(max_length=255, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "session_records"
+        ordering = ["-datetime_created"]
+
+    @property
+    def is_active(self):
+        return self.invalidated_at is None and self.expires_at > timezone.now()
+
+
+class MfaRecoveryCode(BaseModel):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="mfa_recovery_codes",
+    )
+    code_hash = models.CharField(max_length=128)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mfa_recovery_codes"
+        ordering = ["datetime_created"]
+
+    @property
+    def is_available(self):
+        return self.consumed_at is None
+
+
+class Recipient(BaseModel):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_recipients",
+    )
+    contact = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_as_recipient_by",
+    )
+
+    class Meta:
+        db_table = "saved_recipients"
+        unique_together = [("owner", "contact")]
+        ordering = ["contact__display_name", "contact__email"]

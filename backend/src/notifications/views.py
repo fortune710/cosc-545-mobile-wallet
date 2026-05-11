@@ -1,8 +1,21 @@
-from rest_framework import viewsets, permissions, pagination
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+from rest_framework import pagination, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from accounts.permissions import IsVerifiedMfaAuthenticated
 from .models import Notification, Recipient
-from .serializers import NotificationSerializer, RecipientSerializer
+from .serializers import (
+    NotificationSerializer,
+    RecipientCandidateSerializer,
+    RecipientListQuerySerializer,
+    RecipientSerializer,
+)
 from audit.logger import log_event
 from audit.events import RecipientEvent
+
+User = get_user_model()
 
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
@@ -11,25 +24,53 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class NotificationViewSet(viewsets.ModelViewSet):
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVerifiedMfaAuthenticated]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-
 class RecipientViewSet(viewsets.ModelViewSet):
     serializer_class = RecipientSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVerifiedMfaAuthenticated]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        return Recipient.objects.filter(user=self.request.user)
+        queryset = Recipient.objects.filter(user=self.request.user).select_related("recipient")
+        query_serializer = RecipientListQuerySerializer(data={"q": self.request.query_params.get("q", "")})
+        query_serializer.is_valid(raise_exception=True)
+        query = query_serializer.validated_data.get("q", "").strip()
+        if not query:
+            return queryset
+        return queryset.filter(
+            Q(recipient__email__icontains=query)
+            | Q(recipient__display_name__icontains=query)
+            | Q(recipient__first_name__icontains=query)
+            | Q(recipient__last_name__icontains=query)
+        )
+
+    @action(detail=False, methods=["get"], url_path="search-users")
+    def search_users(self, request):
+        query_serializer = RecipientListQuerySerializer(data={"q": request.query_params.get("q", "")})
+        query_serializer.is_valid(raise_exception=True)
+        query = query_serializer.validated_data.get("q", "").strip()
+        if not query:
+            return Response([])
+        users = (
+            User.objects.filter(is_active=True, email_verified_at__isnull=False, mfa_enabled=True)
+            .exclude(pk=request.user.pk)
+            .filter(
+                Q(email__icontains=query)
+                | Q(display_name__icontains=query)
+                | Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+            )
+            .order_by("display_name", "email")[:10]
+        )
+        serializer = RecipientCandidateSerializer(users, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         recipient = serializer.save(user=self.request.user)

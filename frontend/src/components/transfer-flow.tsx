@@ -1,72 +1,77 @@
-import { useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, Mail, UserRound } from "lucide-react"
-import { Link } from "react-router-dom"
-import { toast } from "sonner"
+import { useMemo, useState } from 'react'
+import { ArrowLeft, CheckCircle2, Mail, UserRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { AmountDisplay } from "./amount-display"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { AmountDisplay } from './amount-display'
 
-import { config } from "@/lib/app-config"
-import type { TransferRecipient, TransferStep } from "@/lib/types"
+import { config } from '@/lib/app-config'
+import type { TransferRecipient, TransferStep } from '@/lib/types'
+import { useRecipients } from '@/hooks/use-recipients'
+import { transactionService } from '@/services/transaction-service'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
 
-const mockRecipients: TransferRecipient[] = [
-  { id: "r1", name: "Jordan Miles", email: "jordan@example.com" },
-  { id: "r2", name: "Luna Carter", email: "luna@example.com" },
-  { id: "r3", name: "Sam Rivera", email: "sam@example.com" },
-  { id: "r4", name: "Taylor Brooks", email: "taylor@example.com" },
-]
+const quickAmounts = [5, 10, 20, 50]
 
-const quickAmounts = [10, 20, 30, 50]
-
-/**
- * Formats a numeric value as USD currency string.
- * @param value - The numeric amount to format
- * @param withCents - Whether to always show 2 decimal places
- * @returns Formatted currency string (e.g., "$50" or "$50.00")
- */
 function formatAmount(value: number, withCents = false) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: withCents ? 2 : 0,
-    maximumFractionDigits: withCents ? 2 : 2,
+    maximumFractionDigits: 2,
   }).format(value)
 }
 
-/**
- * Multi-step transfer flow component for sending or requesting money.
- * Guides user through recipient selection, amount entry, and confirmation.
- * @param mode - Whether this is a "send" or "receive" (request) flow
- */
-export function TransferFlow({
-  mode,
-}: {
-  mode: "send" | "receive"
-}) {
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+}
+
+export function TransferFlow({ mode }: { mode: 'send' | 'receive' }) {
   const MAX_AMOUNT = config.maxPaymentAmount
+  const queryClient = useQueryClient()
+  const { recipients, isLoading: recipientsLoading } = useRecipients()
+
   const [step, setStep] = useState<TransferStep>(1)
-  const [emailInput, setEmailInput] = useState("")
+  const [emailInput, setEmailInput] = useState('')
   const [selectedRecipient, setSelectedRecipient] = useState<TransferRecipient | null>(null)
-  const [amount, setAmount] = useState(MAX_AMOUNT)
+  const [amount, setAmount] = useState(10)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
-  const handleAmountChange = (value: number) => {
-    setAmount(Math.min(value, MAX_AMOUNT))
-  }
-
-  const actionLabel = mode === "send" ? "Send" : "Request"
-  const actionPast = mode === "send" ? "sent" : "requested"
-  const title = mode === "send" ? "Send money" : "Request money"
+  const actionLabel = mode === 'send' ? 'Send' : 'Request'
+  const actionPast = mode === 'send' ? 'sent' : 'requested'
+  const title = mode === 'send' ? 'Send money' : 'Request money'
 
   const filteredRecipients = useMemo(() => {
     const query = emailInput.trim().toLowerCase()
-    if (!query) return mockRecipients
-    return mockRecipients.filter(
-      (recipient) =>
-        recipient.email.toLowerCase().includes(query) ||
-        recipient.name.toLowerCase().includes(query)
+    if (!query) return recipients
+    return recipients.filter(
+      (r) =>
+        r.email.toLowerCase().includes(query) ||
+        r.displayName.toLowerCase().includes(query),
     )
-  }, [emailInput])
+  }, [emailInput, recipients])
+
+  const isNewEmail =
+    emailInput.trim().includes('@') &&
+    !recipients.some((r) => r.email.toLowerCase() === emailInput.trim().toLowerCase())
 
   function goToAmountStep(recipient: TransferRecipient) {
     setSelectedRecipient(recipient)
@@ -76,174 +81,244 @@ export function TransferFlow({
 
   function useNewEmailRecipient() {
     const email = emailInput.trim()
-    if (!email.includes("@")) return
-    goToAmountStep({
-      id: "new",
-      name: email.split("@")[0],
-      email,
-    })
+    if (!email.includes('@')) return
+    goToAmountStep({ id: 'new', name: email.split('@')[0], email })
   }
 
+  async function completeAction() {
+    if (!selectedRecipient || amount <= 0) return
 
+    setIsSubmitting(true)
+    setSubmitError('')
 
-  function openConfirmStep() {
-    if (selectedRecipient && amount > 0) {
-      setStep(3)
+    try {
+      const amountStr = amount.toFixed(2)
+
+      if (mode === 'send') {
+        const idempotencyKey = generateUUID()
+        const intent = await transactionService.createPaymentIntent({
+          recipient: selectedRecipient.email,
+          amount: amountStr,
+          idempotencyKey,
+        })
+        await transactionService.confirmPaymentIntent(intent.id)
+      } else {
+        await transactionService.createPaymentRequest({
+          target_user: selectedRecipient.email,
+          amount: amountStr,
+        })
+      }
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.balance })
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions() })
+
+      toast.success(
+        `${formatAmount(amount, true)} ${actionPast} ${mode === 'send' ? 'to' : 'from'} ${selectedRecipient.name}`,
+      )
+
+      setStep(1)
+      setSelectedRecipient(null)
+      setEmailInput('')
+      setAmount(10)
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.detail ||
+        error?.response?.data?.non_field_errors?.[0] ||
+        `Failed to ${actionLabel.toLowerCase()}. Please try again.`
+      setSubmitError(msg)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  function completeAction() {
-    const amountLabel = formatAmount(amount, true)
-    toast.success(
-      `${amountLabel} ${actionPast} ${mode === "send" ? "to" : "from"} ${selectedRecipient?.name}`
-    )
-
-    setStep(1)
-    setSelectedRecipient(null)
-    setEmailInput("")
-    setAmount(MAX_AMOUNT)
-  }
-
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-[920px] flex-col box-border bg-white px-4 pt-8 pb-7 sm:px-5 md:px-8 md:pt-10">
+    <main className="mx-auto flex min-h-svh w-full max-w-230 flex-col box-border bg-white dark:bg-zinc-950 px-4 pt-8 pb-7 sm:px-5 md:px-8 md:pt-10">
       <header className="grid grid-cols-[44px_1fr_44px] items-center">
         <Link
           to="/home"
-          className="grid size-11 place-items-center rounded-full text-zinc-900 hover:bg-zinc-100"
+          className="grid size-11 place-items-center rounded-full text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
           aria-label="Back to home"
         >
-          <ArrowLeft className="size-8" />
+          <ArrowLeft className="size-6" />
         </Link>
-        <h1 className="text-center text-[44px] font-medium tracking-[-0.03em] text-zinc-950 md:text-[48px]">
+        <h1 className="text-center text-[36px] font-bold tracking-[-0.03em] text-zinc-950 dark:text-white md:text-[44px]">
           {title}
         </h1>
         <span />
       </header>
 
-      <section className="mx-auto mt-8 w-full max-w-[700px]">
-        {step === 2 ? (
-          <>
-            <div className="relative text-center">
-              <p className="text-[16px] font-medium text-zinc-500">Amount</p>
-              <AmountDisplay 
-                amount={amount} 
-                onAmountChange={handleAmountChange} 
-                quickAmounts={quickAmounts} 
-              />
-            </div>
-
-            {selectedRecipient ? (
-              <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-xs uppercase tracking-[0.08em] text-zinc-500">Recipient</p>
-                <p className="mt-1 text-[18px] font-semibold text-zinc-950">{selectedRecipient.name}</p>
-                <p className="text-[14px] text-zinc-500">{selectedRecipient.email}</p>
-              </div>
-            ) : null}
-          </>
-        ) : null}
-
-        {step === 1 ? (
+      <section className="mx-auto mt-8 w-full max-w-175">
+        {/* Step 1: Recipient */}
+        {step === 1 && (
           <div className="space-y-4">
             <label className="block space-y-2">
-              <span className="text-[15px] font-medium text-zinc-700">Recipient email</span>
+              <span className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400">
+                {mode === 'send' ? 'Send to' : 'Request from'}
+              </span>
               <div className="relative">
                 <Mail className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
                 <Input
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder="name@example.com or search"
                   value={emailInput}
-                  onChange={(event) => setEmailInput(event.target.value)}
-                  className="h-12 rounded-xl border-zinc-300 bg-zinc-50 pl-10"
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="h-12 rounded-xl border-zinc-200 bg-zinc-50 pl-10 dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>
             </label>
 
-            {emailInput.trim() && !mockRecipients.some((r) => r.email === emailInput.trim()) ? (
+            {isNewEmail && (
               <button
                 type="button"
                 onClick={useNewEmailRecipient}
-                className="w-full rounded-xl border border-lime-300 bg-lime-50 px-4 py-3 text-left text-[15px] font-medium text-lime-900 transition hover:bg-lime-100"
+                className="w-full rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-[14px] font-medium text-violet-800 transition hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-300"
               >
-                Use {emailInput.trim()} as a new recipient
+                Use <strong>{emailInput.trim()}</strong> as recipient
               </button>
-            ) : null}
+            )}
 
             <div>
-              <h2 className="mb-2 text-[15px] font-semibold text-zinc-800">Saved recipients</h2>
-              <div className="space-y-2">
-                {filteredRecipients.map((recipient) => (
-                  <button
-                    key={recipient.id}
-                    type="button"
-                    onClick={() => goToAmountStep(recipient)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-left transition hover:bg-zinc-100"
-                  >
-                    <span className="grid size-9 place-items-center rounded-full bg-violet-100 text-violet-700">
-                      <UserRound className="size-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-medium text-zinc-900">
-                        {recipient.name}
+              <h2 className="mb-3 text-[14px] font-semibold text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+                Saved recipients
+              </h2>
+              {recipientsLoading ? (
+                <div className="space-y-2">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-xl border border-zinc-100 p-3">
+                      <Skeleton className="size-9 rounded-full" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-28 rounded" />
+                        <Skeleton className="h-3 w-40 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredRecipients.length === 0 ? (
+                <div className="flex flex-col items-center py-8 text-zinc-400">
+                  <UserRound className="mb-2 size-8 opacity-40" />
+                  <p className="text-[14px]">No saved recipients yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredRecipients.map((recipient) => (
+                    <button
+                      key={recipient.id}
+                      type="button"
+                      onClick={() => goToAmountStep({ id: recipient.id, name: recipient.displayName, email: recipient.email })}
+                      className="flex w-full items-center gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-3 text-left transition hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-violet-100 text-[13px] font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                        {getInitials(recipient.displayName)}
                       </span>
-                      <span className="block truncate text-[13px] text-zinc-500">
-                        {recipient.email}
+                      <span className="min-w-0">
+                        <span className="block truncate text-[15px] font-medium text-zinc-900 dark:text-white">
+                          {recipient.displayName}
+                        </span>
+                        <span className="block truncate text-[13px] text-zinc-500 dark:text-zinc-400">
+                          {recipient.email}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        ) : null}
+        )}
 
-        {step === 3 && selectedRecipient ? (
-          <div className="mt-12 space-y-6 rounded-3xl border border-zinc-200 bg-zinc-50 p-6">
-            <div className="mx-auto grid size-14 place-items-center rounded-full bg-lime-100 text-lime-700">
+        {/* Step 2: Amount */}
+        {step === 2 && (
+          <>
+            <AmountDisplay
+              amount={amount}
+              onAmountChange={(v) => setAmount(Math.min(v, MAX_AMOUNT))}
+              quickAmounts={quickAmounts}
+            />
+            {selectedRecipient && (
+              <div className="mt-6 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <p className="text-[12px] uppercase tracking-[0.08em] text-zinc-400">Recipient</p>
+                <div className="mt-1 flex items-center gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-violet-100 text-[13px] font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                    {getInitials(selectedRecipient.name)}
+                  </span>
+                  <div>
+                    <p className="text-[16px] font-semibold text-zinc-950 dark:text-white">{selectedRecipient.name}</p>
+                    <p className="text-[13px] text-zinc-500">{selectedRecipient.email}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Step 3: Confirm */}
+        {step === 3 && selectedRecipient && (
+          <div className="mt-8 space-y-6 rounded-3xl border border-zinc-100 bg-zinc-50 p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="mx-auto grid size-14 place-items-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
               <CheckCircle2 className="size-7" />
             </div>
             <div className="text-center">
-              <p className="text-sm uppercase tracking-[0.08em] text-zinc-500">
+              <p className="text-[12px] uppercase tracking-[0.08em] text-zinc-400">
                 Confirm {actionLabel.toLowerCase()}
               </p>
-              <p className="mt-1 text-[46px] font-semibold tracking-[-0.05em] text-zinc-950">
+              <p className="mt-2 text-[52px] font-bold tracking-[-0.05em] text-zinc-950 dark:text-white">
                 {formatAmount(amount, true)}
               </p>
-              <p className="text-[15px] text-zinc-600">
-                {mode === "send" ? "to" : "from"} {selectedRecipient.name} ({selectedRecipient.email})
+              <p className="mt-1 text-[15px] text-zinc-500">
+                {mode === 'send' ? 'to' : 'from'}{' '}
+                <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                  {selectedRecipient.name}
+                </span>{' '}
+                ({selectedRecipient.email})
               </p>
             </div>
+            {submitError && (
+              <p className="text-center text-sm text-red-500">{submitError}</p>
+            )}
           </div>
-        ) : null}
+        )}
       </section>
 
-      <div className="mx-auto mt-auto w-full max-w-[700px] pt-8">
-        {step === 1 ? (
-          <Button disabled={!selectedRecipient} onClick={() => setStep(2)} className="h-14 w-full rounded-full text-[18px] font-semibold">
+      <div className="mx-auto mt-auto w-full max-w-175 pt-8">
+        {step === 1 && (
+          <Button
+            disabled={!selectedRecipient}
+            onClick={() => setStep(2)}
+            className="h-14 w-full rounded-full bg-violet-600 text-[17px] font-semibold text-white hover:bg-violet-700"
+          >
             Continue
           </Button>
-        ) : null}
+        )}
 
-        {step === 2 ? (
+        {step === 2 && (
           <div className="space-y-2">
-            <Button onClick={openConfirmStep} className="h-14 w-full rounded-full text-[18px] font-semibold">
+            <Button
+              onClick={() => setStep(3)}
+              disabled={amount <= 0}
+              className="h-14 w-full rounded-full bg-violet-600 text-[17px] font-semibold text-white hover:bg-violet-700"
+            >
               Continue
             </Button>
             <Button variant="outline" onClick={() => setStep(1)} className="h-12 w-full rounded-full">
               Back
             </Button>
           </div>
-        ) : null}
+        )}
 
-        {step === 3 ? (
+        {step === 3 && (
           <div className="space-y-2">
-            <Button onClick={completeAction} className="h-14 w-full rounded-full text-[18px] font-semibold">
-              {actionLabel} now
+            <Button
+              onClick={completeAction}
+              disabled={isSubmitting}
+              className="h-14 w-full rounded-full bg-violet-600 text-[17px] font-semibold text-white hover:bg-violet-700"
+            >
+              {isSubmitting ? `${actionLabel}ing...` : `${actionLabel} now`}
             </Button>
-            <Button variant="outline" onClick={() => setStep(2)} className="h-12 w-full rounded-full">
+            <Button variant="outline" onClick={() => setStep(2)} className="h-12 w-full rounded-full" disabled={isSubmitting}>
               Back
             </Button>
           </div>
-        ) : null}
+        )}
       </div>
     </main>
   )

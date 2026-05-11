@@ -17,16 +17,33 @@ type PinEntrySlideProps = {
 }
 
 function PinSlots({ value, length = 4, masked = true }: { value: string; length?: number; masked?: boolean }) {
+  const compact = length > 4
+  const activeIndex = value.length < length ? value.length : length - 1
+  const isComplete = value.length >= length
+
   return (
-    <div className="mt-12 flex flex-wrap items-center justify-center gap-0">
-      {Array.from({ length }).map((_, index) => (
-        <div
-          key={index}
-          className="grid size-[3.8rem] sm:size-[4.8rem] place-items-center rounded-lg border border-slate-200 bg-white text-[1.8rem] sm:text-[2rem] font-semibold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
-        >
-          {value[index] ? (masked ? "*" : value[index]) : ""}
-        </div>
-      ))}
+    <div className="mt-4 flex items-center justify-center gap-2">
+      {Array.from({ length }).map((_, index) => {
+        const isFilled = index < value.length
+        const isActive = !isComplete && index === activeIndex
+
+        return (
+          <div
+            key={index}
+            className={cn(
+              "grid place-items-center rounded-lg border font-semibold transition-all duration-150",
+              compact ? "size-[2.8rem] text-[1.4rem]" : "size-16 text-[1.8rem]",
+              isFilled
+                ? "border-[#2F6AE8] bg-[#EEF4FF] text-[#2F6AE8] shadow-[0_4px_12px_rgba(47,106,232,0.15)]"
+                : isActive
+                  ? "border-[#2F6AE8] bg-white text-slate-900 shadow-[0_0_0_3px_rgba(47,106,232,0.15)]"
+                  : "border-slate-200 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
+            )}
+          >
+            {isFilled ? (masked ? "•" : value[index]) : ""}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -57,23 +74,23 @@ export function PinEntrySlide({
 
   return (
     <section className="flex flex-col items-center text-center">
-      <div className="mt-6 grid size-20 place-items-center rounded-3xl bg-[linear-gradient(180deg,#EEF4FF_0%,#E8EEFF_100%)] text-[#2F6AE8] shadow-[0_20px_40px_rgba(47,106,232,0.12)]">
+      <div className="mt-4 grid size-16 place-items-center rounded-3xl bg-[linear-gradient(180deg,#EEF4FF_0%,#E8EEFF_100%)] text-[#2F6AE8] shadow-[0_20px_40px_rgba(47,106,232,0.12)]">
         {icon}
       </div>
-      <h1 className="mt-10 max-w-[340px] text-[3rem] font-semibold leading-[0.98] tracking-[-0.08em] text-slate-950">
+      <h1 className="mt-4 max-w-85 text-[2.5rem] font-semibold leading-[0.98] tracking-[-0.08em] text-slate-950">
         {title}
       </h1>
-      <p className="mt-4 max-w-[240px] text-[1rem] leading-7 text-slate-500">
+      <p className="mt-2 max-w-[240px] text-[0.95rem] leading-6 text-slate-500">
         {description}
       </p>
 
       <PinSlots value={value} length={length} masked={masked} />
 
-      <div className="mt-5 min-h-6">
+      <div className="mt-3 min-h-5">
         {error ? <p className="text-sm font-medium text-red-500">{error}</p> : null}
       </div>
 
-      <div className="mt-6 grid w-full grid-cols-3 gap-y-5">
+      <div className="mt-3 grid w-full grid-cols-3 gap-y-2">
         {KEYPAD_VALUES.map((keyValue, index) => {
           if (!keyValue) {
             return <div key={`empty-${index}`} />

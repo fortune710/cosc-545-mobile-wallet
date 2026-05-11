@@ -1,9 +1,7 @@
-import { ArrowLeft } from "lucide-react"
-import { Link } from "react-router-dom"
-
 import { TransactionListItem } from "@/components/transaction-list-item"
 import { FilterPicker, FilterButton } from "@/components/transaction-filters"
 import { useTransactionHistory, useTransactionHistoryFilters } from "@/hooks/use-transactions"
+import { SettingsLayout } from "@/components/layout/settings-layout"
 
 export function HistoryPage() {
   const {
@@ -18,19 +16,11 @@ export function HistoryPage() {
   const { todayTransactions, olderTransactions, transactions } = useTransactionHistory(filters)
 
   return (
-    <main className="mx-auto w-full max-w-[920px] box-border px-4 pt-10 pb-28 sm:px-5 md:px-8 md:pt-12 md:pb-10">
-      <header className="flex items-center justify-between">
-        <Link
-          to="/home"
-          className="grid size-11 place-items-center rounded-full text-zinc-900 hover:bg-zinc-100"
-          aria-label="Back to home"
-        >
-          <ArrowLeft className="size-7" />
-        </Link>
-        <h1 className="text-[24px] font-bold tracking-tight text-zinc-950 dark:text-zinc-50">
-          History
-        </h1>
-
+    <SettingsLayout
+      title="History"
+      backTo="/home"
+      backLabel=""
+      action={
         <FilterPicker
           filters={filters}
           draftFilters={draftFilters}
@@ -40,18 +30,19 @@ export function HistoryPage() {
         >
           <FilterButton active={filtersActive} />
         </FilterPicker>
-      </header>
-
+      }
+      className="max-w-none"
+    >
       {todayTransactions.length > 0 ? (
-        <section className="mt-8">
-          <h2 className="text-[15px] font-bold uppercase tracking-wider text-zinc-500">Today</h2>
-          <div className="mt-4 overflow-hidden rounded-3xl border border-zinc-200 bg-white">
-            <div className="px-4 sm:px-5">
+        <section className="mt-2">
+          <h2 className="text-[13px] font-semibold uppercase tracking-widest text-zinc-400">Today</h2>
+          <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="px-2 sm:px-3">
               {todayTransactions.map((transaction, idx) => (
                 <div key={transaction.id}>
                   <TransactionListItem transaction={transaction} />
                   {idx !== todayTransactions.length - 1 ? (
-                    <div className="h-px w-full bg-zinc-200/70" />
+                    <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800" />
                   ) : null}
                 </div>
               ))}
@@ -61,15 +52,15 @@ export function HistoryPage() {
       ) : null}
 
       {olderTransactions.length > 0 ? (
-        <section className="mt-10">
-          <h2 className="text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Earlier</h2>
-          <div className="mt-4 overflow-hidden rounded-3xl border border-zinc-200 bg-white">
-            <div className="px-4 sm:px-5">
+        <section className="mt-8">
+          <h2 className="text-[13px] font-semibold uppercase tracking-widest text-zinc-400">Earlier</h2>
+          <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="px-2 sm:px-3">
               {olderTransactions.map((transaction, idx) => (
                 <div key={transaction.id}>
                   <TransactionListItem transaction={transaction} />
                   {idx !== olderTransactions.length - 1 ? (
-                    <div className="h-px w-full bg-zinc-200/70" />
+                    <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800" />
                   ) : null}
                 </div>
               ))}
@@ -79,17 +70,17 @@ export function HistoryPage() {
       ) : null}
 
       {transactions.length === 0 ? (
-        <section className="mt-10 rounded-3xl border border-dashed border-zinc-300 bg-white/70 p-8 text-center">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            {filtersActive ? "No matches found" : "No transactions found"}
+        <section className="mt-8 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 p-8 text-center dark:border-zinc-800 dark:bg-zinc-900/50">
+          <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {filtersActive ? "No matches found" : "No transactions yet"}
           </h2>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
             {filtersActive
               ? "Try adjusting your filters to see more results."
               : "Your transaction history will appear here."}
           </p>
         </section>
       ) : null}
-    </main>
+    </SettingsLayout>
   )
 }

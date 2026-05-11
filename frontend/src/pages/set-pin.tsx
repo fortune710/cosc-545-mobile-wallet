@@ -1,44 +1,28 @@
-import { useMemo, useState } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
-import { AxiosError } from "axios"
-import { ChevronLeft, LockKeyhole } from "lucide-react"
-import { toast } from "sonner"
+import { useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { AxiosError } from 'axios'
+import { ChevronLeft, LockKeyhole } from 'lucide-react'
+import { toast } from 'sonner'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
 
-import { PinEntrySlide } from "@/components/pin-entry-slide"
-import { Button } from "@/components/ui/button"
-import { useResetPin } from "@/hooks/use-change-pin"
-import { pinSchema } from "@/lib/schemas/auth"
-import { config } from "@/lib/app-config"
-
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { Button } from '@/components/ui/button'
+import { AuthLayout } from '@/components/auth/auth-layout'
+import { useResetPin } from '@/hooks/use-change-pin'
+import { pinSchema } from '@/lib/schemas/auth'
+import { config } from '@/lib/app-config'
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof AxiosError) {
     const detail = error.response?.data?.detail
-    if (typeof detail === "string" && detail.length > 0) {
-      return detail
-    }
+    if (typeof detail === 'string' && detail.length > 0) return detail
   }
-
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-
+  if (error instanceof Error && error.message) return error.message
   return fallback
 }
 
 function getSafeReturnTo(rawValue: string | null) {
-  if (!rawValue) {
-    return "/home"
-  }
-
-  if (!rawValue.startsWith("/")) {
-    return "/home"
-  }
-
-  if (rawValue.startsWith("//")) {
-    return "/home"
-  }
-
+  if (!rawValue || !rawValue.startsWith('/') || rawValue.startsWith('//')) return '/home'
   return rawValue
 }
 
@@ -46,82 +30,92 @@ export function SetPinPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const resetPinMutation = useResetPin()
-  const returnTo = getSafeReturnTo(searchParams.get("returnTo"))
+  const returnTo = getSafeReturnTo(searchParams.get('returnTo'))
 
-  const [newPin, setNewPin] = useState("")
-  const [errorMessage, setErrorMessage] = useState("")
-
-  const buttonLabel = useMemo(
-    () => (resetPinMutation.isPending ? "Saving PIN..." : "Continue"),
-    [resetPinMutation.isPending]
-  )
+  const [pin, setPin] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
 
   const isButtonDisabled = useMemo(
-    () => resetPinMutation.isPending || newPin.length !== config.pinLength,
-    [newPin.length, resetPinMutation.isPending]
+    () => resetPinMutation.isPending || pin.length !== config.pinLength,
+    [pin.length, resetPinMutation.isPending],
   )
 
-  const handleBack = () => {
-    navigate("/login", { replace: true })
-  }
-
   const handleContinue = async () => {
-    const validationResult = pinSchema.safeParse(newPin)
+    const validationResult = pinSchema.safeParse(pin)
     if (!validationResult.success) {
-      setErrorMessage(validationResult.error.issues[0]?.message ?? "Invalid PIN.")
+      setErrorMessage(validationResult.error.issues[0]?.message ?? 'Invalid PIN.')
       return
     }
 
     try {
-      await resetPinMutation.mutateAsync(newPin)
-      toast.success("PIN set successfully.")
+      await resetPinMutation.mutateAsync(pin)
+      toast.success('PIN set successfully.')
       navigate(returnTo, { replace: true })
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, "We could not set your PIN. Please try again."))
+      setErrorMessage(getErrorMessage(error, 'We could not set your PIN. Please try again.'))
     }
   }
 
   return (
-    <main className="min-h-svh bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-svh w-full max-w-md flex-col px-6 pb-8 pt-6">
-        <header className="flex items-center justify-between">
-          <Button
-            type="button"
-            size="icon-lg"
-            variant="ghost"
-            onClick={handleBack}
-            className="size-14 rounded-full border border-white/70 bg-white/90 text-slate-950 shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="size-8" strokeWidth={1.8} />
-          </Button>
-        </header>
+    <AuthLayout>
+      <div className="flex flex-1 flex-col px-6 py-10 sm:px-10 md:px-12 lg:px-16 xl:px-20">
+        <button
+          type="button"
+          onClick={() => navigate('/login', { replace: true })}
+          className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-white transition-colors"
+          aria-label="Go back"
+        >
+          <ChevronLeft className="size-4" />
+          Back
+        </button>
 
-        <div className="flex flex-1 flex-col justify-center py-6">
-          <PinEntrySlide
-            icon={<LockKeyhole className="size-12" strokeWidth={1.8} />}
-            title="Create a new PIN"
-            description="Enter a 4-digit code you won't forget"
-            value={newPin}
-            onChange={(value) => {
-              setErrorMessage("")
-              setNewPin(value)
-            }}
-            error={errorMessage}
-          />
-        </div>
+        <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+          <div className="grid size-16 place-items-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">
+            <LockKeyhole className="size-8" strokeWidth={1.5} />
+          </div>
 
-        <footer className="pt-6">
+          <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+            Create your PIN
+          </h1>
+          <p className="mt-2 max-w-xs text-[14px] text-zinc-500 dark:text-zinc-400">
+            Choose a {config.pinLength}-digit PIN to quickly access your wallet
+          </p>
+
+          <div className="mt-8 flex justify-center">
+            <InputOTP
+              maxLength={config.pinLength}
+              value={pin}
+              onChange={(val) => { setPin(val); setErrorMessage('') }}
+              pattern={REGEXP_ONLY_DIGITS}
+              autoFocus
+              onComplete={handleContinue}
+            >
+              <InputOTPGroup className="gap-3">
+                {Array.from({ length: config.pinLength }).map((_, i) => (
+                  <InputOTPSlot
+                    key={i}
+                    index={i}
+                    className="size-14 rounded-xl border border-zinc-200 bg-zinc-50 text-xl font-bold text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white data-[active=true]:border-violet-500 data-[active=true]:ring-2 data-[active=true]:ring-violet-200 dark:data-[active=true]:border-violet-400"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+
+          {errorMessage && (
+            <p className="mt-4 text-[13px] font-medium text-red-500">{errorMessage}</p>
+          )}
+
           <Button
             type="button"
             onClick={handleContinue}
             disabled={isButtonDisabled}
-            className="h-16 w-full rounded-[1.2rem] bg-[#2F6AE8] text-lg font-semibold text-white shadow-[0_18px_40px_rgba(47,106,232,0.28)] transition-transform duration-200 hover:bg-[#275fd1] active:scale-[0.99] disabled:bg-[#DDE4F3] disabled:text-[#97A3BE] disabled:shadow-none"
+            className="mt-8 h-11 w-full max-w-xs rounded-xl bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
           >
-            {buttonLabel}
+            {resetPinMutation.isPending ? 'Saving…' : 'Continue'}
           </Button>
-        </footer>
+        </div>
       </div>
-    </main>
+    </AuthLayout>
   )
 }

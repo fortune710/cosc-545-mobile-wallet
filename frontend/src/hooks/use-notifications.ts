@@ -1,68 +1,51 @@
-import { useState, useEffect, useCallback } from "react"
-import { mockNotifications } from "@/lib/notifications"
-import type { NotificationItem } from "@/lib/types"
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { transactionService } from '@/services/transaction-service'
+import { queryKeys } from '@/lib/query-keys'
+import type { NotificationItem } from '@/lib/types'
+import { authService } from '@/services/auth-service'
 
-const LAST_READ_KEY = "wallet_notifications_last_read"
+const LAST_READ_KEY = 'wallet_notifications_last_read'
+
+function mapNotification(raw: any, lastReadTime: number): NotificationItem {
+  const notifTime = new Date(raw.created_at).getTime()
+  return {
+    id: String(raw.id),
+    type: raw.type as NotificationItem['type'],
+    title: raw.title,
+    description: raw.body,
+    createdAt: raw.created_at,
+    isRead: notifTime <= lastReadTime,
+  }
+}
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [unreadCount, setUnreadCount] = useState(0)
+  const queryClient = useQueryClient()
+  const lastReadTimestamp = localStorage.getItem(LAST_READ_KEY)
+  const lastReadTime = lastReadTimestamp ? new Date(lastReadTimestamp).getTime() : 0
 
-  const fetchNotifications = useCallback(() => {
-    setIsLoading(true)
-    
-    // Simulate API fetch delay
-    setTimeout(() => {
-      const lastReadTimestamp = localStorage.getItem(LAST_READ_KEY)
-      const lastReadTime = lastReadTimestamp ? new Date(lastReadTimestamp).getTime() : 0
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.notifications(),
+    queryFn: () => transactionService.getNotifications(),
+    enabled: authService.isAuthenticated(),
+    select: (raw) => {
+      const items: NotificationItem[] = (raw.results ?? [])
+        .map((n: any) => mapNotification(n, lastReadTime))
+        .sort((a: NotificationItem, b: NotificationItem) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+      return items
+    },
+  })
 
-      // Process notifications to determine read status
-      let unread = 0
-      const processedNotifications = mockNotifications.map((notification) => {
-        const notifTime = new Date(notification.createdAt).getTime()
-        const isRead = notifTime <= lastReadTime
-        
-        if (!isRead) {
-          unread += 1
-        }
-        
-        return {
-          ...notification,
-          isRead,
-        }
-      })
-
-      // Sort by newest first
-      const sorted = processedNotifications.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-
-      setNotifications(sorted)
-      setUnreadCount(unread)
-      setIsLoading(false)
-    }, 600)
-  }, [])
-
-  useEffect(() => {
-    fetchNotifications()
-  }, [fetchNotifications])
+  const notifications = data ?? []
+  const unreadCount = notifications.filter((n) => !n.isRead).length
 
   const markAllAsRead = useCallback(() => {
     const now = new Date().toISOString()
     localStorage.setItem(LAST_READ_KEY, now)
-    
-    setNotifications((current) => 
-      current.map(n => ({ ...n, isRead: true }))
-    )
-    setUnreadCount(0)
-  }, [])
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications() })
+  }, [queryClient])
 
-  return { 
-    notifications, 
-    isLoading, 
-    unreadCount,
-    markAllAsRead,
-    refresh: fetchNotifications
-  }
+  return { notifications, isLoading, unreadCount, markAllAsRead, refresh: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }) }
 }

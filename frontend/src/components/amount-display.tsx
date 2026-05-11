@@ -9,12 +9,14 @@ interface AmountDisplayProps {
   amount: number
   onAmountChange: (amount: number) => void
   quickAmounts?: number[]
+  maxAmount?: number
 }
 
 export function AmountDisplay({
   amount,
   onAmountChange,
   quickAmounts = [10, 20, 30, 50],
+  maxAmount = config.maxPaymentAmount,
 }: AmountDisplayProps) {
   const [isEditingAmount, setIsEditingAmount] = useState(false)
   const [amountInput, setAmountInput] = useState(String(amount))
@@ -31,9 +33,9 @@ export function AmountDisplay({
   function commitAmount() {
     const parsed = Number(amountInput)
     if (!Number.isNaN(parsed) && parsed > 0) {
-      if (parsed > config.maxPaymentAmount) {
-        toast.error(`Maximum amount is $${config.maxPaymentAmount}`)
-        setAmountInput(String(config.maxPaymentAmount))
+      if (parsed > maxAmount) {
+        toast.error(`Maximum amount is $${maxAmount}`)
+        setAmountInput(String(maxAmount))
         // Keep editing mode open so user can correct
         return
       } else {
@@ -46,8 +48,8 @@ export function AmountDisplay({
   }
 
   function applyQuickAmount(value: number) {
-    if (value > 50) {
-      toast.error("Maximum amount is $50")
+    if (value > maxAmount) {
+      toast.error(`Maximum amount is $${maxAmount}`)
       // Don't update amount if it's over the limit
       return
     }

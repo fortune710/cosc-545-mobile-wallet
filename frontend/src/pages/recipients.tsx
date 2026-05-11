@@ -1,30 +1,60 @@
-import { Plus, Search, UserPlus } from "lucide-react"
-import { useState } from "react"
-import { useRecipients } from "@/hooks/use-recipients"
+import { Plus, Search, UserPlus, X } from "lucide-react"
+import { useDeferredValue, useState } from "react"
+import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { useRecipientSearch, useRecipients } from "@/hooks/use-recipients"
 import { RecipientListItem } from "@/components/recipient-list-item"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Button } from "@/components/ui/button"
-import { 
-  Empty, 
-  EmptyHeader, 
-  EmptyTitle, 
-  EmptyDescription, 
-  EmptyMedia, 
-  EmptyContent 
+import { Input } from "@/components/ui/input"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyContent
 } from "@/components/ui/empty"
+import { recipientsService } from "@/services/recipients-service"
+import { PageShell } from "@/components/layout/page-shell"
 
 export function RecipientsPage() {
-  const { recipients, isLoading } = useRecipients()
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newEmail, setNewEmail] = useState("")
+  const [isAdding, setIsAdding] = useState(false)
+  const deferredSearchQuery = useDeferredValue(searchQuery.trim())
+  const deferredNewEmail = useDeferredValue(newEmail.trim())
+  const { recipients, count, isLoading } = useRecipients(deferredSearchQuery)
+  const { results: candidateResults, isLoading: isSearchingCandidates } = useRecipientSearch(deferredNewEmail)
 
-  const filteredRecipients = recipients.filter(
-    (r) =>
-      r.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const candidateExactMatch = candidateResults.find(
+    (candidate) => candidate.email.toLowerCase() === newEmail.trim().toLowerCase(),
   )
 
+  const handleAddRecipient = async (emailOverride?: string) => {
+    const recipientEmail = (emailOverride ?? newEmail).trim()
+    if (!recipientEmail || !recipientEmail.includes("@")) return
+    setIsAdding(true)
+    try {
+      await recipientsService.addRecipient(recipientEmail)
+      queryClient.invalidateQueries({ queryKey: ["recipients"] })
+      toast.success("Recipient added.")
+      setNewEmail("")
+      setShowAddForm(false)
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.recipient?.[0] || "Could not add recipient."
+      toast.error(msg)
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  const openAddForm = () => setShowAddForm(true)
+
   return (
-    <main className="mx-auto w-full max-w-[920px] px-4 pt-8 pb-28 md:px-6 md:pt-10 md:pb-10">
+    <PageShell maxWidth="max-w-230" className="md:px-6">
       <div className="flex flex-col gap-6">
         {/* Header Section */}
         <div className="flex items-center justify-between">
@@ -33,19 +63,80 @@ export function RecipientsPage() {
               Recipients
             </h1>
             <p className="text-[15px] text-zinc-500">
-              {recipients.length} people added
+              {count} {count === 1 ? "person" : "people"} saved
             </p>
           </div>
-          
+
           {/* Desktop Add Button */}
-          <Button 
+          <Button
             className="hidden h-12 gap-2 rounded-full px-6 text-[15px] font-semibold transition-all hover:scale-105 active:scale-95 md:flex"
-            onClick={() => console.log("Add recipient")}
+            onClick={openAddForm}
           >
             <UserPlus className="size-4" />
             Add Recipient
           </Button>
         </div>
+
+        {/* Add recipient form */}
+        {showAddForm && (
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="flex items-center gap-2">
+              <Input
+                type="email"
+                placeholder="Search by name or email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddRecipient(candidateExactMatch?.email)}
+                className="h-10 flex-1 rounded-xl border-zinc-200 bg-white text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                autoFocus
+              />
+              <Button
+                onClick={() => handleAddRecipient(candidateExactMatch?.email)}
+                disabled={isAdding || !newEmail.includes("@")}
+                className="h-10 rounded-xl px-4 text-sm"
+              >
+                {isAdding ? "Adding..." : "Add"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setShowAddForm(false); setNewEmail("") }}
+                className="grid size-10 place-items-center rounded-xl text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {deferredNewEmail.length >= 2 && (
+              <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+                {isSearchingCandidates ? (
+                  <div className="px-4 py-3 text-sm text-zinc-500">Searching…</div>
+                ) : candidateResults.length > 0 ? (
+                  candidateResults.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      onClick={() => handleAddRecipient(candidate.email)}
+                      className="flex w-full items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 text-left last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          {candidate.displayName}
+                        </p>
+                        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                          {candidate.email}
+                        </p>
+                      </div>
+                      <span className="text-xs font-medium text-primary">Add</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-zinc-500">No matching users found.</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
 
         {/* Search Bar */}
         <InputGroup className="h-14 overflow-hidden rounded-[22px] bg-zinc-100/80 backdrop-blur-sm transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20 dark:bg-zinc-900/80 dark:focus-within:bg-zinc-900 border-none shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
@@ -59,7 +150,7 @@ export function RecipientsPage() {
             <Search className="text-zinc-400 size-5" strokeWidth={2.5} />
           </InputGroupAddon>
           <InputGroupAddon align="inline-end" className="text-[14px] text-zinc-400 font-medium pr-5">
-            {filteredRecipients.length} results
+            {count} results
           </InputGroupAddon>
         </InputGroup>
 
@@ -71,12 +162,12 @@ export function RecipientsPage() {
                 <div key={i} className="h-20 w-full animate-pulse rounded-[32px] bg-zinc-100 dark:bg-zinc-900" />
               ))}
             </div>
-          ) : filteredRecipients.length > 0 ? (
-            filteredRecipients.map((recipient) => (
-              <RecipientListItem 
-                key={recipient.id} 
+          ) : recipients.length > 0 ? (
+            recipients.map((recipient) => (
+              <RecipientListItem
+                key={recipient.id}
                 recipient={recipient}
-                onClick={() => console.log("Recipient clicked:", recipient.id)} 
+                onClick={() => {}}
               />
             ))
           ) : (
@@ -100,7 +191,7 @@ export function RecipientsPage() {
                     Clear search
                   </Button>
                 ) : (
-                  <Button className="rounded-full gap-2" onClick={() => console.log("Add recipient")}>
+                  <Button className="rounded-full gap-2" onClick={openAddForm}>
                     <UserPlus className="size-4" />
                     Add Recipient
                   </Button>
@@ -116,11 +207,11 @@ export function RecipientsPage() {
         <div className="absolute -inset-1 animate-pulse rounded-full bg-primary blur-lg opacity-25" />
         <button
           className="relative flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-xl transition-all hover:scale-110 active:scale-90"
-          onClick={() => console.log("Add recipient mobile")}
+          onClick={openAddForm}
         >
           <Plus className="size-6" strokeWidth={3} />
         </button>
       </div>
-    </main>
+    </PageShell>
   )
 }

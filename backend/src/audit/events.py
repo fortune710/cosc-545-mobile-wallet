@@ -17,10 +17,16 @@ class AccountEvent:
     MFA_ENROLLED           = "account.mfa.enrolled"
     MFA_VERIFIED           = "account.mfa.verified"
     MFA_VERIFY_FAILED      = "account.mfa.failed"
+    MFA_RECOVERY_REGENERATED = "account.mfa.recovery_codes.regenerated"
 
 class WalletEvent:
     BALANCE_VIEWED   = "wallet.balance.viewed"
     BALANCE_CREDITED = "wallet.balance.credited"
+    PAYMENT_INITIATED = "wallet.payment.initiated"
+    PAYMENT_CONFIRMED = "wallet.payment.confirmed"
+    PAYMENT_REQUEST_CREATED = "wallet.payment_request.created"
+    PAYMENT_REQUEST_APPROVED = "wallet.payment_request.approved"
+    PAYMENT_REQUEST_DECLINED = "wallet.payment_request.declined"
 
 class RecipientEvent:
     RECIPIENT_ADDED   = "recipient.added"

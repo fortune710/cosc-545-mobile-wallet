@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react"
 import { ChevronLeft } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -37,7 +37,6 @@ function SectionCard({ children }: { children: ReactNode }) {
 }
 
 export function ProfilePage() {
-  const navigate = useNavigate()
   const { user, loading } = useCurrentUser()
 
   const fullName = useMemo(() => {
@@ -58,14 +57,14 @@ export function ProfilePage() {
     <main className="min-h-svh bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfd_100%)] text-zinc-950">
       <div className="mx-auto flex min-h-svh w-full max-w-[920px] flex-col box-border px-4 pb-8 pt-6 sm:px-5 md:px-8">
         <header className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => navigate("/more", { replace: true })}
-            className="grid size-14 place-items-center rounded-full border border-white/70 bg-white/90 text-slate-950 shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur transition-transform hover:scale-[0.98] active:scale-[0.97]"
-            aria-label="Go back"
+          <Link
+            to="/more"
+            className="flex items-center gap-1 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-white"
+            aria-label="Back to More"
           >
-            <ChevronLeft className="size-8" strokeWidth={1.8} />
-          </button>
+            <ChevronLeft className="size-4" strokeWidth={2.2} />
+            <span>More</span>
+          </Link>
         </header>
 
         <section className="mt-10 flex items-center justify-between gap-4 md:mt-14">

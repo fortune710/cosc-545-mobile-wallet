@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { AxiosError } from "axios"
-import { ChevronLeft, LockKeyhole } from "lucide-react"
+import { LockKeyhole } from "lucide-react"
 import { toast } from "sonner"
 
 import { PinEntrySlide } from "@/components/pin-entry-slide"
 import { PinInfo } from "@/components/pin-info"
 import { Button } from "@/components/ui/button"
+import { SettingsLayout } from "@/components/layout/settings-layout"
 import {
   useCheckPin,
   usePinPresenceQuery,
@@ -22,15 +23,9 @@ const PIN_LENGTH = 4
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof AxiosError) {
     const detail = error.response?.data?.detail
-    if (typeof detail === "string" && detail.length > 0) {
-      return detail
-    }
+    if (typeof detail === "string" && detail.length > 0) return detail
   }
-
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-
+  if (error instanceof Error && error.message) return error.message
   return fallback
 }
 
@@ -46,34 +41,24 @@ export function ChangePinPage() {
   const [newPin, setNewPin] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
 
-  const isPending =
-    checkPinMutation.isPending || resetPinMutation.isPending
+  const isPending = checkPinMutation.isPending || resetPinMutation.isPending
+
+  const pageTitle = useMemo(() => {
+    if (step === "current") return "Enter current PIN"
+    if (step === "new") return "Create new PIN"
+    return "Change PIN"
+  }, [step])
 
   const buttonLabel = useMemo(() => {
-    if (step === "intro") {
-      return "Proceed to change your PIN"
-    }
-
-    if (step === "current") {
-      return checkPinMutation.isPending ? "Checking PIN..." : "Continue"
-    }
-
+    if (step === "intro") return "Proceed to change your PIN"
+    if (step === "current") return checkPinMutation.isPending ? "Checking PIN..." : "Continue"
     return resetPinMutation.isPending ? "Saving new PIN..." : "Continue"
   }, [checkPinMutation.isPending, resetPinMutation.isPending, step])
 
   const isButtonDisabled = useMemo(() => {
-    if (isPending) {
-      return true
-    }
-
-    if (step === "intro") {
-      return false
-    }
-
-    if (step === "current") {
-      return currentPin.length !== PIN_LENGTH
-    }
-
+    if (isPending) return true
+    if (step === "intro") return false
+    if (step === "current") return currentPin.length !== PIN_LENGTH
     return newPin.length !== PIN_LENGTH
   }, [currentPin.length, isPending, newPin.length, step])
 
@@ -83,22 +68,15 @@ export function ChangePinPage() {
       navigate("/more")
       return
     }
-
     if (step === "current") {
       setErrorMessage("")
       setCurrentPin("")
       setStep("intro")
       return
     }
-
     setErrorMessage("")
     setNewPin("")
-    if (pinPresence?.has_pin) {
-      setStep("current")
-      return
-    }
-
-    setStep("intro")
+    setStep(pinPresence?.has_pin ? "current" : "intro")
   }
 
   const handleContinue = async () => {
@@ -145,62 +123,41 @@ export function ChangePinPage() {
   }
 
   return (
-    <main className="min-h-svh bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-svh w-full max-w-md flex-col px-6 pb-8 pt-6">
-        <header className="flex items-center justify-between">
-          <Button
-            type="button"
-            size="icon-lg"
-            variant="ghost"
-            onClick={handleBack}
-            className="size-14 rounded-full border border-white/70 bg-white/90 text-slate-950 shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="size-8" strokeWidth={1.8} />
-          </Button>
-        </header>
-
-        <div className="flex flex-1 flex-col justify-center py-6">
-          {step === "intro" ? <PinInfo /> : null}
-          {step === "current" ? (
-            <PinEntrySlide
-              icon={<LockKeyhole className="size-12" strokeWidth={1.8} />}
-              title="Enter your current PIN"
-              description="Enter your existing 4-digit code"
-              value={currentPin}
-              onChange={(value) => {
-                setErrorMessage("")
-                setCurrentPin(value)
-              }}
-              error={errorMessage}
-            />
-          ) : null}
-          {step === "new" ? (
-            <PinEntrySlide
-              icon={<LockKeyhole className="size-12" strokeWidth={1.8} />}
-              title="Create a new PIN"
-              description="Enter a 4-digit code you won't forget"
-              value={newPin}
-              onChange={(value) => {
-                setErrorMessage("")
-                setNewPin(value)
-              }}
-              error={errorMessage}
-            />
-          ) : null}
-        </div>
-
-        <footer className="pt-6">
-          <Button
-            type="button"
-            onClick={handleContinue}
-            disabled={isButtonDisabled}
-            className="h-16 w-full rounded-[1.2rem] bg-[#2F6AE8] text-lg font-semibold text-white shadow-[0_18px_40px_rgba(47,106,232,0.28)] transition-transform duration-200 hover:bg-[#275fd1] active:scale-[0.99] disabled:bg-[#DDE4F3] disabled:text-[#97A3BE] disabled:shadow-none"
-          >
-            {buttonLabel}
-          </Button>
-        </footer>
+    <SettingsLayout title={pageTitle} onBack={handleBack}>
+      <div className="flex flex-1 flex-col justify-center py-4">
+        {step === "intro" && <PinInfo />}
+        {step === "current" && (
+          <PinEntrySlide
+            icon={<LockKeyhole className="size-12" strokeWidth={1.8} />}
+            title="Enter your current PIN"
+            description="Enter your existing 4-digit code"
+            value={currentPin}
+            onChange={(value) => { setErrorMessage(""); setCurrentPin(value) }}
+            error={errorMessage}
+          />
+        )}
+        {step === "new" && (
+          <PinEntrySlide
+            icon={<LockKeyhole className="size-12" strokeWidth={1.8} />}
+            title="Create a new PIN"
+            description="Enter a 4-digit code you won't forget"
+            value={newPin}
+            onChange={(value) => { setErrorMessage(""); setNewPin(value) }}
+            error={errorMessage}
+          />
+        )}
       </div>
-    </main>
+
+      <div className="pt-4">
+        <Button
+          type="button"
+          onClick={handleContinue}
+          disabled={isButtonDisabled}
+          className="h-14 w-full rounded-2xl bg-violet-600 text-[17px] font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:bg-violet-700 active:scale-[0.99] disabled:opacity-50 disabled:shadow-none"
+        >
+          {buttonLabel}
+        </Button>
+      </div>
+    </SettingsLayout>
   )
 }

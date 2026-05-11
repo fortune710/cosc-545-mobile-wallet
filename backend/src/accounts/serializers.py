@@ -1,215 +1,163 @@
-from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.db import IntegrityError, transaction
-from drf_spectacular.utils import extend_schema_field
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from accounts.models import Recipient
 
 User = get_user_model()
-WEAK_PINS = {
-    "0000",
-    "1111",
-    "2222",
-    "3333",
-    "4444",
-    "5555",
-    "6666",
-    "7777",
-    "8888",
-    "9999",
-    "1234",
-}
-
-
-def get_client_ip(request):
-    # Only trust REMOTE_ADDR for security reasons.
-    return request.META.get("REMOTE_ADDR")
 
 
 class UserSerializer(serializers.ModelSerializer):
     email_verified = serializers.SerializerMethodField()
-    mfa_required = serializers.SerializerMethodField()
     role_label = serializers.CharField(source="get_role_display", read_only=True)
 
     class Meta:
         model = User
         fields = (
+            "id",
             "email",
             "first_name",
             "last_name",
             "display_name",
             "phone_number",
-            "role",
-            "role_label",
             "address_line_1",
             "address_line_2",
             "city",
             "state",
             "postal_code",
             "country",
+            "role",
+            "role_label",
             "email_verified",
             "mfa_enabled",
-            "mfa_required",
         )
         read_only_fields = fields
 
-    @extend_schema_field(serializers.BooleanField)
     def get_email_verified(self, obj):
         return bool(obj.email_verified_at)
 
-    @extend_schema_field(serializers.BooleanField)
-    def get_mfa_required(self, obj):
-        return not obj.mfa_enabled
 
-
-class RegisterSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(validators=[])
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
-
-    class Meta:
-        model = User
-        fields = (
-            "email",
-            "password",
-            "first_name",
-            "last_name",
-            "display_name",
-            "phone_number",
-            "address_line_1",
-            "address_line_2",
-            "city",
-            "state",
-            "postal_code",
-            "country",
-        )
-        extra_kwargs = {
-            "first_name": {"required": False, "allow_blank": True},
-            "last_name": {"required": False, "allow_blank": True},
-            "display_name": {"required": False, "allow_blank": True},
-            "phone_number": {"required": False, "allow_blank": True},
-            "address_line_1": {"required": False, "allow_blank": True},
-            "address_line_2": {"required": False, "allow_blank": True},
-            "city": {"required": False, "allow_blank": True},
-            "state": {"required": False, "allow_blank": True},
-            "postal_code": {"required": False, "allow_blank": True},
-            "country": {"required": False, "allow_blank": True},
-        }
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=12, trim_whitespace=False)
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    display_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    address_line_1 = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    address_line_2 = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    state = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    postal_code = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    country = serializers.CharField(required=False, allow_blank=True, max_length=2)
 
     def validate_password(self, value):
-        validate_password(value)
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages)
         return value
 
-    def create(self, validated_data):
-        password = validated_data.pop("password")
-        request = self.context.get("request")
-        registration_ip = get_client_ip(request) if request else None
 
-        try:
-            with transaction.atomic():
-                return User.objects.create_user(
-                    password=password,
-                    registration_ip=registration_ip,
-                    **validated_data,
-                )
-        except IntegrityError:
-            raise serializers.ValidationError(
-                {"detail": "If this email address is not already registered, you will receive a confirmation email shortly."}
-            )
-
-
-class RegisterResponseSerializer(serializers.Serializer):
+class GenericDetailSerializer(serializers.Serializer):
     detail = serializers.CharField()
 
 
-class AuthTokenSerializer(TokenObtainPairSerializer):
-    username_field = User.EMAIL_FIELD
+class VerifyEmailSerializer(serializers.Serializer):
+    token = serializers.CharField()
 
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token["role"] = user.role
-        token["mfa_enabled"] = user.mfa_enabled
-        return token
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class LoginStartSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(trim_whitespace=False)
+
+
+class LoginStartResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    flow_token = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
+    mfa_required = serializers.BooleanField(required=False)
+    mfa_setup_required = serializers.BooleanField(required=False)
+    email_verification_required = serializers.BooleanField(required=False)
+
+
+class LoginVerifyMfaSerializer(serializers.Serializer):
+    flow_token = serializers.CharField()
+    mfa_code = serializers.CharField(required=False, allow_blank=True)
+    recovery_code = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        credentials = {
-            self.username_field: attrs.get(self.username_field),
-            "password": attrs.get("password"),
-        }
-        data = super().validate(credentials)
-        request = self.context.get("request")
-        last_login_ip = get_client_ip(request) if request else None
-        if last_login_ip and self.user.last_login_ip != last_login_ip:
-            self.user.last_login_ip = last_login_ip
-            self.user.save(update_fields=["last_login_ip"])
-        data["user"] = UserSerializer(self.user).data
-        data["has_pin"] = bool(self.user.pin)
-        return data
+        if not attrs.get("mfa_code") and not attrs.get("recovery_code"):
+            raise serializers.ValidationError("Either mfa_code or recovery_code is required.")
+        return attrs
+
+
+class AuthResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    recovery_codes = serializers.ListField(child=serializers.CharField(), required=False)
+    user = UserSerializer()
 
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 
-class BalanceIncrementSerializer(serializers.Serializer):
-    amount = serializers.IntegerField(
-        min_value=100,
-        max_value=5000
-    )
+class RefreshSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
 
 
-class BalanceResponseSerializer(serializers.Serializer):
-    balance = serializers.IntegerField(read_only=True)
+class RefreshResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
 
 
-class PinSetSerializer(serializers.Serializer):
-    pin = serializers.CharField(min_length=4, max_length=4)
-
-    def validate_pin(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("PIN must be exactly 4 digits.")
-        if value in WEAK_PINS:
-            raise serializers.ValidationError("Choose a less predictable PIN.")
-        return value
+class MfaEnrollResponseSerializer(serializers.Serializer):
+    provisioning_url = serializers.CharField()
+    secret = serializers.CharField()
+    mfa_enabled = serializers.BooleanField()
 
 
-class PinCheckSerializer(serializers.Serializer):
-    pin = serializers.CharField(min_length=4, max_length=4)
-
-    def validate_pin(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("PIN must be exactly 4 digits.")
-        return value
+class RegenerateRecoveryCodesResponseSerializer(serializers.Serializer):
+    recovery_codes = serializers.ListField(child=serializers.CharField())
 
 
-class PinHasResponseSerializer(serializers.Serializer):
-    has_pin = serializers.BooleanField(read_only=True)
+class RecipientSerializer(serializers.ModelSerializer):
+    display_name = serializers.CharField(source="contact.display_name", read_only=True)
+    email = serializers.CharField(source="contact.email", read_only=True)
+    created_at = serializers.DateTimeField(source="datetime_created", read_only=True)
+
+    class Meta:
+        model = Recipient
+        fields = ["id", "display_name", "email", "created_at"]
+        read_only_fields = fields
+
+
+class UserSearchSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "display_name", "email"]
+        read_only_fields = fields
+
+    def get_display_name(self, obj):
+        return obj.display_name or f"{obj.first_name} {obj.last_name}".strip() or obj.email
 
 
 class ProfileUpdateSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
-    first_name = serializers.CharField(required=False, max_length=150, allow_blank=True)
-    last_name = serializers.CharField(required=False, max_length=150, allow_blank=True)
-    display_name = serializers.CharField(required=False, max_length=150, allow_blank=True)
-    phone_number = serializers.CharField(required=False, max_length=32, allow_blank=True)
-    address_line_1 = serializers.CharField(required=False, max_length=255, allow_blank=True)
-    address_line_2 = serializers.CharField(required=False, max_length=255, allow_blank=True)
-    city = serializers.CharField(required=False, max_length=120, allow_blank=True)
-    state = serializers.CharField(required=False, max_length=120, allow_blank=True)
-    postal_code = serializers.CharField(required=False, max_length=32, allow_blank=True)
-    country = serializers.CharField(required=False, max_length=2, allow_blank=True)
-
-
-class VerificationSendResponseSerializer(serializers.Serializer):
-    detail = serializers.CharField(read_only=True)
-
-
-class OtpCheckSerializer(serializers.Serializer):
-    otp = serializers.CharField(min_length=4, max_length=4)
-
-    def validate_otp(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("OTP must be exactly 4 digits.")
-        return value
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    display_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    address_line_1 = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    address_line_2 = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    state = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    postal_code = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    country = serializers.CharField(required=False, allow_blank=True, max_length=2)

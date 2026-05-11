@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ShieldCheck, QrCode } from 'lucide-react'
+import { ChevronLeft, QrCode, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { toast } from 'sonner'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
 
-import { PinEntrySlide } from '@/components/pin-entry-slide'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Button } from '@/components/ui/button'
+import { AuthLayout } from '@/components/auth/auth-layout'
 import { useMfa } from '@/hooks/use-mfa'
 import { Spinner } from '@/components/ui/spinner'
 
 export function MfaPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const {
-    enroll,
-    verify,
-    provisioningUrl,
-    enrollError,
-    isVerifying,
-    //isEnrolling 
-  } = useMfa()
+  const { enroll, verify, provisioningUrl, enrollError, isVerifying } = useMfa()
 
   const token = searchParams.get('token')
   const enrolledParam = searchParams.get('enrolled')
@@ -28,23 +23,21 @@ export function MfaPage() {
   const [verifyError, setVerifyError] = useState('')
 
   useEffect(() => {
-    // If not enrolled and no identification token present, redirect to signup
     if (enrolledParam === 'false' && !token) {
       toast.error('Please enroll MFA first')
       navigate('/signup', { replace: true })
       return
     }
-
     if (step === 'scan') {
-      enroll(token || undefined).catch(() => {
-        // Error handled by hook
-      })
+      enroll(token || undefined).catch(() => {})
     }
   }, [enroll, token, step, enrolledParam, navigate])
 
   const handleBack = () => {
     if (step === 'verify') {
       setStep('scan')
+      setMfaCode('')
+      setVerifyError('')
     } else {
       navigate(-1)
     }
@@ -52,92 +45,111 @@ export function MfaPage() {
 
   const handleVerify = async () => {
     if (mfaCode.length !== 6) return
-
     try {
       await verify({ code: mfaCode, token: token || undefined })
       toast.success('MFA enabled successfully')
       navigate('/home', { replace: true })
-    } catch (err) {
-      setVerifyError('Invalid verification code')
+    } catch {
+      setVerifyError('Invalid verification code. Please try again.')
       setMfaCode('')
     }
   }
 
   return (
-    <main className="min-h-svh bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-svh w-full max-w-md flex-col px-2 pb-8 pt-6">
-        <header className="flex items-center">
-          <Button
-            type="button"
-            size="icon-lg"
-            variant="ghost"
-            onClick={handleBack}
-            className="size-14 rounded-full border border-white/70 bg-white/90 text-slate-950 shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur"
-          >
-            <ChevronLeft className="size-8" strokeWidth={1.8} />
-          </Button>
-        </header>
+    <AuthLayout>
+      <div className="flex flex-1 flex-col px-6 py-10 sm:px-10 md:px-12 lg:px-16 xl:px-20">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-white transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back
+        </button>
 
-        <div className="flex flex-1 flex-col justify-center py-2">
+        <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
           {step === 'scan' ? (
-            <div className="flex flex-col items-center text-center">
-              <div className="grid size-24 place-items-center rounded-[28px] bg-[linear-gradient(180deg,#EEF4FF_0%,#E8EEFF_100%)] text-[#2F6AE8] shadow-[0_20px_40px_rgba(47,106,232,0.12)]">
-                <QrCode className="size-10" strokeWidth={1.8} />
+            <>
+              <div className="grid size-16 place-items-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">
+                <QrCode className="size-8" strokeWidth={1.5} />
               </div>
-              <h1 className="mt-10 text-[3rem] font-semibold leading-[0.98] tracking-[-0.08em]">
-                Setup MFA
+              <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+                Set up authenticator
               </h1>
-              <p className="mt-4 text-slate-500">
-                Scan this QR code with your authenticator app
+              <p className="mt-2 max-w-xs text-[14px] text-zinc-500 dark:text-zinc-400">
+                Scan this QR code with Google Authenticator, Authy, or any TOTP app.
               </p>
 
-              <div className="mt-10 rounded-2xl bg-white p-6 shadow-xl">
+              <div className="mt-8 inline-block rounded-2xl border border-zinc-100 bg-white p-5 shadow-md dark:border-zinc-800 dark:bg-zinc-900">
                 {provisioningUrl ? (
-                  <QRCodeSVG value={provisioningUrl} size={200} />
+                  <QRCodeSVG value={provisioningUrl} size={160} />
                 ) : (
-                  <div className="h-[200px] w-[200px] animate-pulse bg-slate-100 rounded-lg" />
+                  <div className="size-40 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
                 )}
               </div>
 
-              {enrollError && <p className="mt-4 text-sm text-red-500">{(enrollError as any).response?.data?.detail || 'Failed to initialize MFA'}</p>}
+              {enrollError && (
+                <p className="mt-4 text-[13px] text-red-500">
+                  {(enrollError as any).response?.data?.detail || 'Failed to initialize MFA'}
+                </p>
+              )}
 
               <Button
                 onClick={() => setStep('verify')}
                 disabled={!provisioningUrl}
-                className="mt-10 h-16 w-full rounded-full text-lg font-semibold text-white shadow-[0_18px_40px_rgba(47,106,232,0.28)]"
+                className="mt-8 h-11 w-full max-w-xs rounded-xl bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700"
               >
                 I&apos;ve scanned it
               </Button>
-            </div>
+            </>
           ) : (
-            <PinEntrySlide
-              icon={<ShieldCheck className="size-10" strokeWidth={1.8} />}
-              title="Verify Code"
-              description="Enter the 6-digit code from your authenticator app"
-              value={mfaCode}
-              onChange={(val) => {
-                setMfaCode(val)
-                setVerifyError('')
-              }}
-              error={verifyError}
-              length={6}
-              masked={false}
-            />
+            <>
+              <div className="grid size-16 place-items-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">
+                <ShieldCheck className="size-8" strokeWidth={1.5} />
+              </div>
+              <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+                Enter verification code
+              </h1>
+              <p className="mt-2 max-w-xs text-[14px] text-zinc-500 dark:text-zinc-400">
+                Enter the 6-digit code from your authenticator app
+              </p>
+
+              <div className="mt-8 flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={(val) => { setMfaCode(val); setVerifyError('') }}
+                  pattern={REGEXP_ONLY_DIGITS}
+                  autoFocus
+                  onComplete={handleVerify}
+                >
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className="size-12 rounded-xl border border-zinc-200 bg-zinc-50 text-base font-bold text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white data-[active=true]:border-violet-500 data-[active=true]:ring-2 data-[active=true]:ring-violet-200 dark:data-[active=true]:border-violet-400"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              {verifyError && (
+                <p className="mt-4 text-[13px] font-medium text-red-500">{verifyError}</p>
+              )}
+
+              <Button
+                onClick={handleVerify}
+                disabled={mfaCode.length !== 6 || isVerifying}
+                className="mt-7 h-11 w-full max-w-xs rounded-xl bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700"
+              >
+                {isVerifying ? <Spinner /> : 'Verify & Enable MFA'}
+              </Button>
+            </>
           )}
         </div>
-
-        {step === 'verify' && (
-          <footer className="pt-6">
-            <Button
-              onClick={handleVerify}
-              disabled={mfaCode.length !== 6 || isVerifying}
-              className="h-16 w-full rounded-full text-lg font-semibold text-white shadow-[0_18px_40px_rgba(47,106,232,0.28)]"
-            >
-              {isVerifying ? <Spinner /> : 'Verify & Enable'}
-            </Button>
-          </footer>
-        )}
       </div>
-    </main>
+    </AuthLayout>
   )
 }

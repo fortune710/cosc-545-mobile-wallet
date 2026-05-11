@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { NotificationListItem } from "@/components/notification-list-item"
 import { useNotifications } from "@/hooks/use-notifications"
 import { Button } from "@/components/ui/button"
+import { PageShell } from "@/components/layout/page-shell"
 
 export function NotificationsPage() {
   const { notifications, isLoading, unreadCount, markAllAsRead } = useNotifications()
@@ -28,7 +29,7 @@ export function NotificationsPage() {
   )
 
   return (
-    <main className="mx-auto w-full max-w-[920px] box-border px-4 pt-10 pb-28 sm:px-5 md:px-8 md:pt-12 md:pb-10">
+    <PageShell className="pb-10">
       <header className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Link
@@ -113,6 +114,6 @@ export function NotificationsPage() {
           )}
         </div>
       )}
-    </main>
+    </PageShell>
   )
 }

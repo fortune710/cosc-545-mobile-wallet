@@ -21,6 +21,12 @@ export type Recipient = {
   createdAt: string
 }
 
+export type RecipientCandidate = {
+  id: string
+  displayName: string
+  email: string
+}
+
 export type Filters = {
   dateFrom: string
   dateTo: string
@@ -68,6 +74,7 @@ export type AuthUser = {
   firstName: string
   lastName: string
   email: string
+  emailVerified?: boolean
 }
 
 export type PinPresenceResponse = {
@@ -78,19 +85,58 @@ export type BalanceResponse = {
   balance: number
 }
 
-export type LoginResponse = {
+export type LoginStartResponse = {
+  detail?: string
+  flow_token?: string
+  email?: string
+  mfa_required?: boolean
+  mfa_setup_required?: boolean
+  email_verification_required?: boolean
+}
+
+export type LoginVerifyResponse = {
   access: string
   refresh: string
   user: {
     id?: string | number
     email?: string
   }
-  has_pin: boolean
+  recovery_codes?: string[]
+}
+
+/** @deprecated use LoginStartResponse / LoginVerifyResponse */
+export type LoginResponse = LoginVerifyResponse & {
+  has_pin?: boolean
   mfa_required?: boolean
-  mfa_enrollment_token?: string
-  mfa_enrolled?: boolean
 }
 
 export interface SignOutConfirmationProps {
   children: React.ReactNode
+}
+
+export type ApiTransaction = {
+  id: string
+  date_time_utc: string
+  type: 'funding' | 'payment_sent' | 'payment_received' | 'request_payment'
+  counterparty_display_name: string
+  amount: string
+  memo?: string
+  status: 'pending' | 'completed' | 'declined' | 'expired' | 'failed'
+}
+
+export type TransactionFilters = {
+  dateFrom?: string
+  dateTo?: string
+  transactionType?: string
+  amountMin?: string
+  amountMax?: string
+  page?: number
+  pageSize?: number
+}
+
+export type PaginatedResponse<T> = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }

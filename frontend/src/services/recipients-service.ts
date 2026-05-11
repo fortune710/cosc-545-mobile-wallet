@@ -1,28 +1,47 @@
 import api from '@/lib/api'
 import logger from '@/lib/logger'
-import type { Recipient } from '@/lib/types'
+import type { Recipient, RecipientCandidate } from '@/lib/types'
+
+function mapRecipient(r: any): Recipient {
+  return {
+    id: String(r.id),
+    displayName: r.display_name || r.email,
+    email: r.email,
+    createdAt: r.created_at,
+  }
+}
 
 export const recipientsService = {
-  async getRecipients(page = 1): Promise<{ results: Recipient[], count: number }> {
-    logger.info({ page }, 'Fetching recipients')
+  async getRecipients(page = 1, query = ''): Promise<{ results: Recipient[], count: number }> {
+    logger.info({ page, query }, 'Fetching recipients')
     try {
       const response = await api.get('/api/recipients/', {
-        params: { page }
+        params: { page, q: query || undefined }
       })
-      
-      const mappedResults = response.data.results.map((r: any) => ({
-        id: String(r.id),
-        displayName: r.display_name,
-        email: r.email,
-        createdAt: r.created_at,
-      }))
-      
+
       return {
         ...response.data,
-        results: mappedResults
+        results: response.data.results.map(mapRecipient)
       }
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch recipients')
+      throw error
+    }
+  },
+
+  async searchUsers(query: string): Promise<RecipientCandidate[]> {
+    logger.info({ query }, 'Searching internal users for recipients')
+    try {
+      const response = await api.get('/api/recipients/search-users/', {
+        params: { q: query },
+      })
+      return response.data.map((user: any) => ({
+        id: String(user.id),
+        displayName: user.display_name || user.email,
+        email: user.email,
+      }))
+    } catch (error: any) {
+      logger.error({ query, error }, 'Failed to search recipient users')
       throw error
     }
   },
@@ -33,14 +52,7 @@ export const recipientsService = {
       const response = await api.post('/api/recipients/', {
         recipient: recipientId
       })
-      
-      const r = response.data
-      return {
-        id: String(r.id),
-        displayName: r.display_name,
-        email: r.email,
-        createdAt: r.created_at,
-      }
+      return mapRecipient(response.data)
     } catch (error: any) {
       logger.error({ recipientId, error }, 'Failed to add recipient')
       throw error

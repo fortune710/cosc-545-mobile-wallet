@@ -3,43 +3,66 @@ import logger from '@/lib/logger'
 import type {
   AuthUser,
   ChangePasswordValues,
-  LoginResponse,
+  LoginStartResponse,
+  LoginVerifyResponse,
   PinPresenceResponse,
-  SignInValues,
   SignUpValues,
 } from '@/lib/types'
 import { UnauthorizedError, TokenExpiredError } from '@/lib/errors/auth'
 import { getDeviceFingerprint } from '@/lib/fingerprint'
 
 export const authService = {
-  async login(credentials: SignInValues): Promise<LoginResponse> {
-    logger.info({ email: credentials.email }, 'Attempting login')
+  async loginStart(credentials: { email: string; password: string }): Promise<LoginStartResponse> {
+    logger.info({ email: credentials.email }, 'Starting login step 1')
     try {
       const deviceId = await getDeviceFingerprint()
-      const response = await api.post('/api/auth/login/', {
-        email: credentials.email,
-        password: credentials.password,
-        mfa_code: credentials.mfaCode,
-      }, {
-        headers: {
-          'X-DEVICE-ID': deviceId
-        }
-      })
-      
-      const { access, refresh, user, mfa_required } = response.data
-
-      // If MFA is required, we don't save tokens yet
-      if (mfa_required) {
-        return response.data
-      }
-      
-      localStorage.setItem('accessToken', access)
-      localStorage.setItem('refreshToken', refresh)
-
-      logger.info({ userId: user.email }, 'Login successful')
+      const response = await api.post(
+        '/api/auth/login/start/',
+        { email: credentials.email, password: credentials.password },
+        { headers: { 'X-DEVICE-ID': deviceId } },
+      )
       return response.data
     } catch (error: any) {
-      logger.error({ email: credentials.email, error }, 'Login failed')
+      logger.error({ email: credentials.email, error }, 'Login start failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async loginVerifyMfa(payload: { flow_token: string; mfa_code: string }): Promise<LoginVerifyResponse> {
+    logger.info('Verifying MFA code')
+    try {
+      const response = await api.post('/api/auth/login/verify-mfa/', {
+        flow_token: payload.flow_token,
+        mfa_code: payload.mfa_code,
+      })
+      const { access, refresh } = response.data
+      localStorage.setItem('accessToken', access)
+      localStorage.setItem('refreshToken', refresh)
+      logger.info('MFA verified, tokens saved')
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'MFA verification failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async verifyEmail(token: string): Promise<void> {
+    logger.info('Verifying email address')
+    try {
+      await api.post('/api/auth/verify-email/', { token })
+    } catch (error: any) {
+      logger.error({ error }, 'Email verification failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async resendVerificationEmail(email: string): Promise<{ detail: string }> {
+    logger.info({ email }, 'Resending verification email')
+    try {
+      const response = await api.post('/api/auth/verify-email/resend/', { email })
+      return response.data
+    } catch (error: any) {
+      logger.error({ email, error }, 'Verification resend failed')
       throw this.handleApiError(error)
     }
   },
@@ -52,18 +75,11 @@ export const authService = {
       const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
 
       const deviceId = await getDeviceFingerprint()
-      const response = await api.post('/api/auth/register/', {
-        email: data.email,
-        password: data.password,
-        first_name,
-        last_name,
-        display_name: data.fullName,
-      }, {
-        headers: {
-          'X-DEVICE-ID': deviceId
-        }
-      })
-
+      const response = await api.post(
+        '/api/auth/register/',
+        { email: data.email, password: data.password, first_name, last_name, display_name: data.fullName },
+        { headers: { 'X-DEVICE-ID': deviceId } },
+      )
       logger.info({ email: data.email }, 'Registration request completed')
       return response.data
     } catch (error: any) {
@@ -77,11 +93,11 @@ export const authService = {
     try {
       const response = await api.get('/api/auth/me/')
       const data = response.data
-      
       return {
         firstName: data.first_name,
         lastName: data.last_name,
         email: data.email,
+        emailVerified: data.email_verified,
       }
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch user profile')
@@ -134,7 +150,6 @@ export const authService = {
         current_password: data.currentPassword,
         new_password: data.newPassword,
       })
-
       logger.info('Password changed successfully')
       return response.data
     } catch (error: any) {
@@ -182,11 +197,8 @@ export const authService = {
     if (error.response) {
       const status = error.response.status
       const detail = error.response.data?.detail || ''
-
       if (status === 401) {
-        if (detail.includes('expired')) {
-          return new TokenExpiredError()
-        }
+        if (detail.includes('expired')) return new TokenExpiredError()
         return new UnauthorizedError()
       }
     }
@@ -195,5 +207,5 @@ export const authService = {
 
   isAuthenticated() {
     return !!localStorage.getItem('accessToken')
-  }
+  },
 }

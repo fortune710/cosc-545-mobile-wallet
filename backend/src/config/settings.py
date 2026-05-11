@@ -39,6 +39,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 INSTALLED_APPS = [
     "accounts",
+    "wallet",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -124,6 +125,7 @@ PASSWORD_HASHERS = [
 AUTH_USER_MODEL = "accounts.User"
 
 SENDER_EMAIL = "contact@fortunealebiosu.dev"
+FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:5173").rstrip("/")
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -138,7 +140,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "accounts.authentication.SessionJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -152,7 +154,7 @@ REST_FRAMEWORK = {
         "anon": "100/day",
         "user": "5000/day",
         "auth": "10/minute",
-        "transactions": "10/hour",
+        "transactions": "10/minute",
         "password_change": "5/hour",
         "profile_update": "30/hour",
         "email_verify_send": "5/hour",
@@ -173,3 +175,8 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
 }
+
+EMAIL_BACKEND = os.getenv(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
