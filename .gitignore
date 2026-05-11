@@ -15,3 +15,7 @@ backend/**/__pycache__/
 backend/staticfiles/
 node_modules/
 frontend/dist/
+var/log/backend/
+monitoring/wazuh/config/wazuh_indexer_ssl_certs/*.pem
+monitoring/wazuh/config/wazuh_indexer_ssl_certs/*.key
+!monitoring/wazuh/config/wazuh_indexer_ssl_certs/.gitkeep

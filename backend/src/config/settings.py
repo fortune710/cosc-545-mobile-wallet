@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ from config.constants import (
     DEFAULT_FRONTEND_APP_URL,
     DEFAULT_REDIS_URL,
     DEFAULT_SENDER_EMAIL,
+    DEFAULT_TRANSACTION_CHECKPOINT_DIRNAME,
     MAILTRAP_MAIL_DELIVERY_MODE,
 )
 
@@ -26,6 +28,7 @@ if not SECRET_KEY:
     raise ValueError("DJANGO_SECRET_KEY environment variable must be set")
 
 AUDIT_HMAC_SECRET = os.getenv("AUDIT_HMAC_SECRET")
+TRANSACTION_HMAC_SECRET = os.getenv("TRANSACTION_HMAC_SECRET") or AUDIT_HMAC_SECRET or SECRET_KEY
 
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
@@ -147,6 +150,12 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+TRANSACTION_CHECKPOINT_DIR = Path(
+    os.getenv(
+        "TRANSACTION_CHECKPOINT_DIR",
+        str(BASE_DIR / DEFAULT_TRANSACTION_CHECKPOINT_DIRNAME),
+    )
+)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -172,6 +181,8 @@ REST_FRAMEWORK = {
         "profile_update": "30/hour",
         "email_verify_send": "5/hour",
         "otp_check": "10/hour",
+        "login_ip": "20/hour",
+        "login_fingerprint": "20/hour",
     },
 }
 
@@ -214,3 +225,66 @@ CHANNEL_LAYERS = {
         },
     }
 }
+
+LOGGER = os.getenv("LOGGER", "securewallet")
+DJANGO_LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO").upper()
+DJANGO_LOG_DIR = Path(os.getenv("DJANGO_LOG_DIR", "/var/log/securewallet"))
+DJANGO_APP_LOG_FILE = os.getenv("DJANGO_APP_LOG_FILE", "securewallet.app.jsonl")
+DJANGO_AUDIT_LOG_FILE = os.getenv("DJANGO_AUDIT_LOG_FILE", "securewallet.audit.jsonl")
+try:
+    DJANGO_LOG_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    DJANGO_LOG_DIR = BASE_DIR / "logs"
+    DJANGO_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "config.logging_utils.JsonFormatter",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+            "level": DJANGO_LOG_LEVEL,
+        },
+        "app_file": {
+            "class": "logging.FileHandler",
+            "filename": str(DJANGO_LOG_DIR / DJANGO_APP_LOG_FILE),
+            "formatter": "json",
+            "level": DJANGO_LOG_LEVEL,
+        },
+        "audit_file": {
+            "class": "logging.FileHandler",
+            "filename": str(DJANGO_LOG_DIR / DJANGO_AUDIT_LOG_FILE),
+            "formatter": "json",
+            "level": DJANGO_LOG_LEVEL,
+        },
+    },
+    "loggers": {
+        LOGGER: {
+            "handlers": ["console", "app_file"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+        f"{LOGGER}.audit": {
+            "handlers": ["console", "audit_file"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console", "app_file"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console", "app_file"],
+        "level": DJANGO_LOG_LEVEL,
+    },
+}
+
+logging.captureWarnings(True)

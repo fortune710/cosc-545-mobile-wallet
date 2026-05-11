@@ -12,6 +12,7 @@ from accounts.views import (
     RegenerateRecoveryCodesView,
     RegisterView,
     ResendVerificationView,
+    SessionListView,
     SessionRefreshView,
     UserSearchView,
     VerifyEmailView,
@@ -29,6 +30,7 @@ auth_urlpatterns = [
     path("mfa/enroll/", MfaEnrollView.as_view(), name="auth-mfa-enroll"),
     path("mfa/verify/", MfaVerifyView.as_view(), name="auth-mfa-verify"),
     path("mfa/recovery-codes/regenerate/", RegenerateRecoveryCodesView.as_view(), name="auth-mfa-recovery-regenerate"),
+    path("sessions/", SessionListView.as_view(), name="auth-sessions"),
 ]
 
 recipient_urlpatterns = [

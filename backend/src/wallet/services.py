@@ -26,6 +26,7 @@ from notifications.constants import (
 )
 from notifications.models import NotificationType
 from notifications.services import create_notification
+from wallet.integrity import checkpoint_wallet_chain
 from wallet.constants import (
     MAX_FUNDING_CENTS,
     MAX_PAYMENT_CENTS,
@@ -54,25 +55,41 @@ def ensure_wallet(user: User) -> Wallet:
 
 
 def _last_transaction_hash(wallet: Wallet) -> str:
-    last_txn = wallet.transactions.order_by("-effective_at", "-datetime_created").first()
+    last_txn = wallet.transactions.order_by("-sequence_number").first()
     return last_txn.record_hash if last_txn else ""
 
 
-def _create_transaction(wallet: Wallet, tx_type: str, amount: int, status: str, counterparty=None, memo="", related_transaction=None):
+def _next_transaction_sequence(wallet: Wallet) -> int:
+    last_txn = wallet.transactions.order_by("-sequence_number").first()
+    return (last_txn.sequence_number if last_txn else 0) + 1
+
+
+def _finalize_transaction(txn: Transaction, *, lock: bool = True):
+    txn.record_hash = txn.compute_record_hash()
+    txn.chain_signature = txn.compute_chain_signature()
+    update_fields = ["record_hash", "chain_signature"]
+    if lock:
+        txn.immutable_at = timezone.now()
+        update_fields.append("immutable_at")
+    txn.save(update_fields=update_fields)
+    transaction.on_commit(lambda wallet_id=txn.wallet_id: checkpoint_wallet_chain(Wallet.objects.get(pk=wallet_id)))
+    return txn
+
+
+def _create_transaction(wallet: Wallet, tx_type: str, amount: int, status: str, counterparty=None, memo="", related_transaction=None, lock=True):
     txn = Transaction.objects.create(
         wallet=wallet,
         counterparty_user=counterparty,
         transaction_type=tx_type,
         amount=amount,
         status=status,
+        sequence_number=_next_transaction_sequence(wallet),
         memo=memo,
         related_transaction=related_transaction,
         previous_hash=_last_transaction_hash(wallet),
         effective_at=timezone.now(),
     )
-    txn.record_hash = txn.compute_record_hash()
-    txn.save(update_fields=["record_hash"])
-    return txn
+    return _finalize_transaction(txn, lock=lock)
 
 
 def _create_receipt(transaction: Transaction, sender: User, recipient: User):
@@ -168,6 +185,7 @@ def confirm_payment_intent(intent: PaymentIntent):
             status=Transaction.Status.COMPLETED,
             counterparty=intent.recipient,
             memo=intent.memo,
+            lock=False,
         )
         recipient_txn = _create_transaction(
             wallet=recipient_wallet,
@@ -180,6 +198,7 @@ def confirm_payment_intent(intent: PaymentIntent):
         )
         sender_txn.related_transaction = recipient_txn
         sender_txn.save(update_fields=["related_transaction"])
+        _finalize_transaction(sender_txn)
 
         receipt = _create_receipt(sender_txn, intent.sender, intent.recipient)
         intent.status = PaymentIntent.Status.CONFIRMED

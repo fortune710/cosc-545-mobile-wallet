@@ -1,11 +1,14 @@
 import hashlib
+import hmac
 import json
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 from core.models import BaseModel
+from wallet.constants import TRANSACTION_CHAIN_VERSION
 
 
 class Wallet(BaseModel):
@@ -49,6 +52,7 @@ class Transaction(BaseModel):
     )
     transaction_type = models.CharField(max_length=32, choices=Type.choices)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    sequence_number = models.PositiveBigIntegerField()
     amount = models.BigIntegerField()
     memo = models.CharField(max_length=100, blank=True)
     related_transaction = models.ForeignKey(
@@ -60,7 +64,9 @@ class Transaction(BaseModel):
     )
     previous_hash = models.CharField(max_length=64, blank=True)
     record_hash = models.CharField(max_length=64, blank=True)
+    chain_signature = models.CharField(max_length=64, blank=True)
     effective_at = models.DateTimeField(default=timezone.now, db_index=True)
+    immutable_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "transactions"
@@ -69,12 +75,20 @@ class Transaction(BaseModel):
             models.Index(fields=["wallet", "effective_at"]),
             models.Index(fields=["transaction_type", "status"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wallet", "sequence_number"],
+                name="unique_transaction_sequence_per_wallet",
+            )
+        ]
 
     def canonical_payload(self):
         return json.dumps(
             {
+                "chain_version": TRANSACTION_CHAIN_VERSION,
                 "id": str(self.id),
                 "wallet_id": str(self.wallet_id),
+                "sequence_number": self.sequence_number,
                 "counterparty_user_id": str(self.counterparty_user_id) if self.counterparty_user_id else None,
                 "transaction_type": self.transaction_type,
                 "status": self.status,
@@ -89,6 +103,59 @@ class Transaction(BaseModel):
 
     def compute_record_hash(self):
         return hashlib.sha256(self.canonical_payload().encode()).hexdigest()
+
+    def compute_chain_signature(self):
+        secret = settings.TRANSACTION_HMAC_SECRET
+        return hmac.new(secret.encode(), self.compute_record_hash().encode(), hashlib.sha256).hexdigest()
+
+    @property
+    def is_immutable(self):
+        return bool(self.immutable_at)
+
+    def lock_record(self):
+        self.immutable_at = timezone.now()
+        self.save(update_fields=["immutable_at"])
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            existing = type(self).objects.filter(pk=self.pk).only(
+                "wallet_id",
+                "counterparty_user_id",
+                "transaction_type",
+                "status",
+                "sequence_number",
+                "amount",
+                "memo",
+                "related_transaction_id",
+                "previous_hash",
+                "record_hash",
+                "chain_signature",
+                "effective_at",
+                "immutable_at",
+            ).first()
+            if existing and existing.immutable_at:
+                locked_fields = [
+                    "wallet_id",
+                    "counterparty_user_id",
+                    "transaction_type",
+                    "status",
+                    "sequence_number",
+                    "amount",
+                    "memo",
+                    "related_transaction_id",
+                    "previous_hash",
+                    "record_hash",
+                    "chain_signature",
+                    "effective_at",
+                ]
+                if any(getattr(existing, field) != getattr(self, field) for field in locked_fields):
+                    raise ValidationError("Immutable transactions cannot be modified.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.immutable_at:
+            raise ValidationError("Immutable transactions cannot be deleted.")
+        return super().delete(*args, **kwargs)
 
 
 class PaymentIntent(BaseModel):

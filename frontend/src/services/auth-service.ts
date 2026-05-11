@@ -6,6 +6,7 @@ import type {
   LoginStartResponse,
   LoginVerifyResponse,
   PinPresenceResponse,
+  SessionRecord,
   SignUpValues,
 } from '@/lib/types'
 import { UnauthorizedError, TokenExpiredError } from '@/lib/errors/auth'
@@ -31,10 +32,12 @@ export const authService = {
   async loginVerifyMfa(payload: { flow_token: string; mfa_code: string }): Promise<LoginVerifyResponse> {
     logger.info('Verifying MFA code')
     try {
-      const response = await api.post('/api/auth/login/verify-mfa/', {
-        flow_token: payload.flow_token,
-        mfa_code: payload.mfa_code,
-      })
+      const deviceId = await getDeviceFingerprint()
+      const response = await api.post(
+        '/api/auth/login/verify-mfa/',
+        { flow_token: payload.flow_token, mfa_code: payload.mfa_code },
+        { headers: { 'X-DEVICE-ID': deviceId } },
+      )
       const { access, refresh } = response.data
       localStorage.setItem('accessToken', access)
       localStorage.setItem('refreshToken', refresh)
@@ -189,6 +192,17 @@ export const authService = {
       return response.data
     } catch (error: any) {
       logger.error({ error }, 'MFA verification failed')
+      throw this.handleApiError(error)
+    }
+  },
+
+  async getSessions(): Promise<SessionRecord[]> {
+    logger.info('Fetching active sessions')
+    try {
+      const response = await api.get('/api/auth/sessions/')
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to fetch sessions')
       throw this.handleApiError(error)
     }
   },

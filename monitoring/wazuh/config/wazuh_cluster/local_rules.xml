@@ -1,0 +1,58 @@
+<group name="securewallet,application,">
+  <rule id="100500" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="source">securewallet</field>
+    <description>SecureWallet application security event observed.</description>
+    <options>no_full_log</options>
+    <group>securewallet_events,</group>
+  </rule>
+
+  <rule id="100501" level="8">
+    <if_sid>100500</if_sid>
+    <field name="event_type">account.login.failed</field>
+    <description>SecureWallet login failure detected.</description>
+    <group>authentication_failed,securewallet_accounts,</group>
+  </rule>
+
+  <rule id="100502" level="10">
+    <if_sid>100501</if_sid>
+    <field name="metadata.result">locked</field>
+    <description>SecureWallet account lockout detected after repeated failures.</description>
+    <group>authentication_failed,account_lockout,securewallet_accounts,</group>
+  </rule>
+
+  <rule id="100503" level="9">
+    <if_sid>100500</if_sid>
+    <field name="event_type">account.mfa.failed</field>
+    <description>SecureWallet MFA verification failure detected.</description>
+    <group>authentication_failed,mfa_failed,securewallet_accounts,</group>
+  </rule>
+
+  <rule id="100504" level="4">
+    <if_sid>100500</if_sid>
+    <field name="event_type">account.login</field>
+    <description>SecureWallet login succeeded.</description>
+    <group>authentication_success,securewallet_accounts,</group>
+  </rule>
+
+  <rule id="100505" level="6">
+    <if_sid>100500</if_sid>
+    <field name="event_type">wallet.payment.initiated</field>
+    <description>SecureWallet payment initiated.</description>
+    <group>securewallet_wallet,payment_activity,</group>
+  </rule>
+
+  <rule id="100506" level="7">
+    <if_sid>100500</if_sid>
+    <field name="event_type">wallet.payment.confirmed</field>
+    <description>SecureWallet payment confirmed.</description>
+    <group>securewallet_wallet,payment_activity,</group>
+  </rule>
+
+  <rule id="100507" level="9">
+    <if_sid>100500</if_sid>
+    <field name="security_signal">audit_integrity_failure</field>
+    <description>SecureWallet audit integrity failure detected.</description>
+    <group>integrity_failure,securewallet_audit,</group>
+  </rule>
+</group>

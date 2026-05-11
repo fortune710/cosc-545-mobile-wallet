@@ -72,6 +72,10 @@ The frontend currently runs outside Docker. Start it from the `frontend/` direct
 - `make up` starts Django and Postgres with Docker Compose
 - `make down` stops the backend stack
 - `make logs` tails backend and database logs
+- `make monitor-init` generates Wazuh TLS certificates
+- `make monitor-up` starts the Wazuh stack
+- `make monitor-down` stops the Wazuh stack
+- `make monitor-logs` tails Wazuh logs
 - `make shell` opens a shell in the backend container
 - `make migrate` runs Django migrations
 - `make makemigrations` creates new migrations
@@ -85,6 +89,37 @@ The frontend currently runs outside Docker. Start it from the `frontend/` direct
 - The backend is API-first and uses Django REST Framework
 - Swagger/OpenAPI is generated with `drf-spectacular`
 - Postgres is the default development database
+
+## Wazuh Monitoring
+
+The local stack now includes a single-node Wazuh deployment plus a containerized agent for Docker and SecureWallet log ingestion.
+
+Before first startup on Linux, set the required kernel map count:
+
+```bash
+sudo sysctl -w vm.max_map_count=262144
+```
+
+Then start the stack:
+
+```bash
+make up
+```
+
+`make up` generates self-signed Wazuh certificates on first run using `monitoring/wazuh/generate-indexer-certs.yml`.
+
+Local access:
+- Wazuh dashboard: `https://localhost:8443`
+- Wazuh API: `https://localhost:55000`
+- Wazuh indexer: `https://localhost:9200`
+
+Default Wazuh credentials come from `.env.example` and should be overridden in `.env` for any non-throwaway environment.
+
+SecureWallet backend security logs are mirrored to:
+- `var/log/backend/securewallet.app.jsonl`
+- `var/log/backend/securewallet.audit.jsonl`
+
+The Wazuh manager includes local rules for SecureWallet auth and wallet audit activity, and the agent watches Docker container logs, selected host logs under `/var/log`, repo paths for file integrity monitoring, and SecureWallet structured backend logs.
 
 ## Current API Surface
 

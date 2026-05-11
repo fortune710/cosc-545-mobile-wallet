@@ -134,6 +134,16 @@ export type ApiTransaction = {
   status: 'pending' | 'completed' | 'declined' | 'expired' | 'failed'
 }
 
+export type SessionRecord = {
+  session_key: string
+  device_id: string
+  ip_address: string | null
+  user_agent: string
+  created_at: string
+  expires_at: string
+  is_active: boolean
+}
+
 export type TransactionFilters = {
   dateFrom?: string
   dateTo?: string

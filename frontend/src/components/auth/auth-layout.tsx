@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { SecureWalletLogo } from '@/components/brand/securewallet-logo'
 
 const quote = {
-  text: 'Move small money with big confidence.',
-  sub: 'SecureWallet keeps internal transfers instant, verified, and audit-ready from the first sign-in.',
+  text: 'Send money with total confidence.',
+  sub: 'SecureWallet protects every transaction with verified identity, real-time security checks, and zero guesswork.',
 }
 
 export function AuthLayout({ children }: { children: ReactNode }) {
@@ -42,7 +42,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
           {/* Feature chips */}
           <div className="mt-10 flex flex-wrap gap-2.5">
-            {['One-click verification', 'Internal-only transfers', 'MFA by default', 'Audit-ready security'].map((f) => (
+            {['Instant transfers', 'Verified identity', 'MFA by default', 'Bank-grade security'].map((f) => (
               <span
                 key={f}
                 className="rounded-full border border-violet-300/20 bg-white/8 px-3.5 py-1.5 text-[13px] font-medium text-white/86 backdrop-blur-sm"
@@ -54,19 +54,19 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
           <div className="mt-12 rounded-[28px] border border-violet-300/15 bg-white/6 p-5 backdrop-blur-sm">
             <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-violet-200/70">
-              Why teams choose it
+              Why people trust it
             </p>
             <div className="mt-4 grid gap-3 text-sm text-violet-100/88">
-              <p>Wallet balances stay local, fast, and easy to audit.</p>
-              <p>Every sign-in, transfer, and request passes through verified identity checks.</p>
-              <p>No third-party payment rails, no unnecessary complexity, no guesswork.</p>
+              <p>Your balance is always accurate, instant, and protected.</p>
+              <p>Every sign-in and payment is verified with multi-factor security.</p>
+              <p>Simple, fast, and secure — from your first transfer to your last.</p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="relative text-[13px] text-violet-200/56">
-          Internal wallet access with verified identity and protected money movement.
+          Secure transfers, verified identity, protected money.
         </div>
       </aside>
 

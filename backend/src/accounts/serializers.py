@@ -3,7 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from accounts.models import Recipient
+from accounts.models import Recipient, SessionRecord
 from accounts.validators import is_disposable_email
 
 User = get_user_model()
@@ -154,6 +154,16 @@ class UserSearchSerializer(serializers.ModelSerializer):
 
     def get_display_name(self, obj):
         return obj.display_name or f"{obj.first_name} {obj.last_name}".strip() or obj.email
+
+
+class SessionRecordSerializer(serializers.ModelSerializer):
+    is_active = serializers.BooleanField(read_only=True)
+    created_at = serializers.DateTimeField(source="datetime_created", read_only=True)
+
+    class Meta:
+        model = SessionRecord
+        fields = ["session_key", "device_id", "ip_address", "user_agent", "created_at", "expires_at", "is_active"]
+        read_only_fields = fields
 
 
 class ProfileUpdateSerializer(serializers.Serializer):

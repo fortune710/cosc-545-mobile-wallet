@@ -4,7 +4,10 @@ from django.contrib.auth.hashers import check_password
 from django.db import models, transaction
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
+from accounts.throttles import LoginFingerprintThrottle, LoginIPThrottle
+from ipware import get_client_ip as ipware_get_client_ip
 from rest_framework import permissions, status
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
@@ -32,6 +35,7 @@ from accounts.serializers import (
     MfaEnrollResponseSerializer,
     ProfileUpdateSerializer,
     RecipientSerializer,
+    SessionRecordSerializer,
     RefreshResponseSerializer,
     RefreshSerializer,
     RegisterSerializer,
@@ -59,7 +63,8 @@ User = get_user_model()
 
 
 def get_client_ip(request):
-    return request.META.get("REMOTE_ADDR")
+    ip, _ = ipware_get_client_ip(request)
+    return ip or request.META.get("REMOTE_ADDR")
 
 
 def register_failed_login(user: User):
@@ -151,6 +156,8 @@ class ResendVerificationView(APIView):
 
 class LoginStartView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginIPThrottle, LoginFingerprintThrottle, ScopedRateThrottle]
+    throttle_scope = "auth"
 
     @extend_schema(request=LoginStartSerializer, responses={status.HTTP_200_OK: LoginStartResponseSerializer})
     def post(self, request):
@@ -183,6 +190,13 @@ class LoginStartView(APIView):
                 }
             )
 
+        device_id = request.headers.get("X-DEVICE-ID", "")
+        current_ip = get_client_ip(request)
+        if user.device_fingerprint and user.device_fingerprint != device_id:
+            notify_new_device(user, device_id)
+        if user.last_login_ip and user.last_login_ip != current_ip:
+            notify_new_location(user, current_ip)
+
         if not user.mfa_enabled:
             flow = issue_auth_flow_token(user, AuthFlowToken.Purpose.MFA_SETUP)
             return Response(
@@ -199,6 +213,8 @@ class LoginStartView(APIView):
 
 class LoginVerifyMfaView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginIPThrottle, LoginFingerprintThrottle, ScopedRateThrottle]
+    throttle_scope = "auth"
 
     @extend_schema(request=LoginVerifyMfaSerializer, responses={status.HTTP_200_OK: AuthResponseSerializer})
     def post(self, request):
@@ -349,6 +365,15 @@ class MeView(APIView):
             metadata={"fields": changed_fields},
         )
         return Response(UserSerializer(user).data)
+
+
+class SessionListView(APIView):
+    permission_classes = [IsVerifiedMfaAuthenticated]
+
+    @extend_schema(responses={status.HTTP_200_OK: SessionRecordSerializer(many=True)})
+    def get(self, request):
+        sessions = SessionRecord.objects.filter(user=request.user).order_by("-datetime_created")
+        return Response(SessionRecordSerializer(sessions, many=True).data)
 
 
 class MfaEnrollView(APIView):

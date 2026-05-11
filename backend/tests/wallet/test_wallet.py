@@ -1,10 +1,12 @@
 import pyotp
+from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from wallet.integrity import verify_wallet_chain
 from wallet.models import PaymentRequest
 
 
@@ -92,6 +94,15 @@ class WalletFlowTests(APITestCase):
         self.assertEqual(history_response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(history_response.data), 2)
 
+        sender_wallet = self.sender.wallet
+        sender_transactions = list(sender_wallet.transactions.order_by("sequence_number"))
+        self.assertEqual(sender_transactions[0].sequence_number, 1)
+        self.assertEqual(sender_transactions[1].sequence_number, 2)
+        self.assertEqual(sender_transactions[1].previous_hash, sender_transactions[0].record_hash)
+        self.assertTrue(sender_transactions[0].chain_signature)
+        self.assertIsNotNone(sender_transactions[0].immutable_at)
+        self.assertTrue(verify_wallet_chain(sender_wallet).is_valid)
+
     def test_payment_request_can_be_approved(self):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
         self.client.post(
@@ -172,3 +183,25 @@ class WalletFlowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("card_number", response.data)
         self.assertIn("cardholder_name", response.data)
+
+    def test_completed_transactions_are_append_only(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
+        self.client.post(
+            reverse("wallet-fund"),
+            {
+                "amount": "25.00",
+                "cardholder_name": "SecureWallet Demo",
+                "card_number": "4242 4242 4242 4242",
+                "expiry_month": "12",
+                "expiry_year": "34",
+                "cvv": "123",
+            },
+            format="json",
+        )
+
+        txn = self.sender.wallet.transactions.order_by("sequence_number").first()
+        txn.memo = "tampered"
+        with self.assertRaises(ValidationError):
+            txn.save()
+        with self.assertRaises(ValidationError):
+            txn.delete()

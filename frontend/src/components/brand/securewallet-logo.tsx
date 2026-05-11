@@ -52,12 +52,10 @@ export function SecureWalletLogo({ compact = false, light = false, className = '
 
       {compact ? (
         <div className="min-w-0">
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${eyebrowTone}`}>Wallet</p>
           <p className={`text-base font-black tracking-[-0.03em] ${wordmarkTone}`}>{config.appName}</p>
         </div>
       ) : (
         <div className="min-w-0">
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${eyebrowTone}`}>Internal Money Layer</p>
           <p className={`text-lg font-black tracking-[-0.03em] ${wordmarkTone}`}>{config.appName}</p>
         </div>
       )}

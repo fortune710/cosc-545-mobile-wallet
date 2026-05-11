@@ -27,12 +27,13 @@ import { ChangePasswordPage } from "@/pages/change-password"
 import { ProfilePage } from "@/pages/profile"
 import { MfaPage } from "@/pages/mfa"
 import { VerifyEmailPage } from "@/pages/verify-email"
+import { SessionsPage } from "@/pages/sessions"
 
 const queryClient = new QueryClient()
 
 function AppShell() {
   const { pathname } = useLocation()
-  const hideTabBar = ["/login", "/signup", "/verify-email", "/add-balance", "/send", "/receive", "/notifications", "/history", "/change-pin", "/change-password", "/profile", "/set-pin", "/mfa"].includes(pathname)
+  const hideTabBar = ["/login", "/signup", "/verify-email", "/add-balance", "/send", "/receive", "/notifications", "/history", "/change-pin", "/change-password", "/profile", "/set-pin", "/mfa", "/sessions"].includes(pathname)
 
   return (
     <div className="min-h-svh bg-white text-zinc-950">
@@ -144,6 +145,14 @@ function AppShell() {
         />
         <Route path="/mfa" element={<MfaPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route
+          path="/sessions"
+          element={(
+            <ProtectedRoute>
+              <SessionsPage />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
 

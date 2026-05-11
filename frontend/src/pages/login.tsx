@@ -17,9 +17,6 @@ import { authService } from '@/services/auth-service'
 import { signInSchema } from '@/lib/schemas/auth'
 import logger from '@/lib/logger'
 
-const MAX_ATTEMPTS = 3
-const LOCKOUT_MS = 30_000
-
 export function LoginPage() {
     const [searchParams, setSearchParams] = useSearchParams()
     const loginStartMutation = useLoginStart()
@@ -29,17 +26,14 @@ export function LoginPage() {
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [errorMessage, setErrorMessage] = useState('')
-    const [failedAttempts, setFailedAttempts] = useState(0)
-    const [lockedUntil, setLockedUntil] = useState<number | null>(null)
     const [mfaCode, setMfaCode] = useState('')
     const [flowToken, setFlowToken] = useState('')
     const [redirectTo, setRedirectTo] = useState<string | null>(null)
 
     const mode = searchParams.get('mode') || 'email'
     const emailIsValid = email.length > 0 ? signInSchema.shape.email.safeParse(email).success : true
-    const isLocked = Boolean(lockedUntil && Date.now() < lockedUntil)
     const emailFormValid = emailIsValid && password.trim().length > 0
-    const canSubmitEmail = emailFormValid && !isLocked && !loginStartMutation.isPending
+    const canSubmitEmail = emailFormValid && !loginStartMutation.isPending
     const canSubmitMfa = mfaCode.length === 6 && !loginVerifyMutation.isPending
 
     const returnTo = (() => {
@@ -54,7 +48,7 @@ export function LoginPage() {
         if (!canSubmitEmail) return
 
         setErrorMessage('')
-        logger.info({ email, attempt: failedAttempts + 1 }, 'Login step 1 attempt')
+        logger.info({ email }, 'Login step 1 attempt')
 
         try {
             const response = await loginStartMutation.mutateAsync({ email, password })
@@ -74,22 +68,15 @@ export function LoginPage() {
             setFlowToken(response.flow_token ?? '')
             setSearchParams({ mode: 'mfa', returnTo })
         } catch (error: any) {
-            const nextAttempts = failedAttempts + 1
-            setFailedAttempts(nextAttempts)
             logger.error({ email, error }, 'Login step 1 failed')
 
             const status = error?.response?.status
             if (status === 403) {
                 const detail = error?.response?.data?.detail || ''
-                if (detail.includes('locked')) setErrorMessage('Account is temporarily locked. Try again later.')
+                if (detail.includes('locked')) setErrorMessage('Too many failed attempts. Your account is temporarily locked — try again later.')
                 else setErrorMessage('Access denied. Please try again.')
             } else {
                 setErrorMessage('Invalid email or password.')
-            }
-
-            if (nextAttempts >= MAX_ATTEMPTS) {
-                setLockedUntil(Date.now() + LOCKOUT_MS)
-                setErrorMessage('Too many attempts. Please wait before trying again.')
             }
         }
     }
@@ -131,7 +118,7 @@ export function LoginPage() {
                                 Welcome back.
                             </h1>
                             <p className="mt-2 text-[15px] text-zinc-500 dark:text-zinc-400">
-                                Sign in to access fast internal transfers with verified protection.
+                                Sign in to your secure wallet with verified protection.
                             </p>
                         </div>
 

@@ -5,6 +5,7 @@ import {
   Key,
   Lock,
   LogOut,
+  Monitor,
   ShieldCheck,
   UserCircle,
 } from "lucide-react"
@@ -102,6 +103,14 @@ export function MorePage() {
             <div className="flex items-center gap-3.5">
               <Lock className="size-5 text-zinc-400" strokeWidth={1.5} />
               <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Change PIN</span>
+            </div>
+            <ChevronRight className="size-4.5 text-zinc-300 dark:text-zinc-600" strokeWidth={2} />
+          </Link>
+          <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+          <Link to="/sessions" className="flex items-center justify-between py-3.5 px-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+            <div className="flex items-center gap-3.5">
+              <Monitor className="size-5 text-zinc-400" strokeWidth={1.5} />
+              <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Active Devices</span>
             </div>
             <ChevronRight className="size-4.5 text-zinc-300 dark:text-zinc-600" strokeWidth={2} />
           </Link>
