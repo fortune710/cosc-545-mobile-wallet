@@ -13,7 +13,7 @@ from .serializers import (
     RecipientSerializer,
 )
 from audit.logger import log_event
-from audit.events import RecipientEvent
+from audit.events import NotificationEvent, RecipientEvent
 
 User = get_user_model()
 
@@ -31,6 +31,12 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        count = response.data.get("count", len(response.data)) if isinstance(response.data, dict) else len(response.data)
+        log_event(NotificationEvent.NOTIFICATION_LIST_VIEWED, "SUCCESS", user=request.user, request=request, metadata={"count": count})
+        return response
 
 class RecipientViewSet(viewsets.ModelViewSet):
     serializer_class = RecipientSerializer
@@ -51,12 +57,19 @@ class RecipientViewSet(viewsets.ModelViewSet):
             | Q(recipient__last_name__icontains=query)
         )
 
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        count = response.data.get("count", len(response.data)) if isinstance(response.data, dict) else len(response.data)
+        log_event(RecipientEvent.RECIPIENT_LIST_VIEWED, "SUCCESS", user=request.user, request=request, metadata={"count": count})
+        return response
+
     @action(detail=False, methods=["get"], url_path="search-users")
     def search_users(self, request):
         query_serializer = RecipientListQuerySerializer(data={"q": request.query_params.get("q", "")})
         query_serializer.is_valid(raise_exception=True)
         query = query_serializer.validated_data.get("q", "").strip()
         if not query:
+            log_event(RecipientEvent.RECIPIENT_SEARCH_PERFORMED, "SUCCESS", user=request.user, request=request, metadata={"result": "empty_query"})
             return Response([])
         users = (
             User.objects.filter(is_active=True, email_verified_at__isnull=False, mfa_enabled=True)
@@ -70,6 +83,7 @@ class RecipientViewSet(viewsets.ModelViewSet):
             .order_by("display_name", "email")[:10]
         )
         serializer = RecipientCandidateSerializer(users, many=True)
+        log_event(RecipientEvent.RECIPIENT_SEARCH_PERFORMED, "SUCCESS", user=request.user, request=request, metadata={"count": len(users), "user_search_query_length": len(query)})
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -79,7 +93,7 @@ class RecipientViewSet(viewsets.ModelViewSet):
             "SUCCESS", 
             user=self.request.user, 
             request=self.request,
-            metadata={"recipient_id": recipient.id}
+            metadata={"recipient_id": str(recipient.id)}
         )
 
     def perform_destroy(self, instance):
@@ -90,5 +104,5 @@ class RecipientViewSet(viewsets.ModelViewSet):
             "SUCCESS", 
             user=self.request.user, 
             request=self.request,
-            metadata={"recipient_id": recipient_id}
+            metadata={"recipient_id": str(recipient_id)}
         )

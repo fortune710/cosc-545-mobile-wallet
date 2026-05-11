@@ -3,11 +3,13 @@ from datetime import timedelta
 import pyotp
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from audit.models import AuditEvent
 from accounts.models import EmailVerificationToken, MfaRecoveryCode, SessionRecord
 from wallet.models import Wallet
 
@@ -16,6 +18,9 @@ User = get_user_model()
 
 
 class AuthenticationTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
     def test_register_returns_generic_message_and_creates_inactive_user(self):
         response = self.client.post(
             reverse("auth-register"),
@@ -105,6 +110,8 @@ class AuthenticationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["mfa_setup_required"])
         self.assertIn("flow_token", response.data)
+        self.assertIn("provisioning_url", response.data)
+        self.assertIn("secret", response.data)
 
     def test_login_start_redirects_unverified_user_to_verification_flow(self):
         user = User.objects.create_user(
@@ -174,15 +181,7 @@ class AuthenticationTests(APITestCase):
             format="json",
         )
         flow_token = login_start.data["flow_token"]
-
-        enroll_response = self.client.post(
-            reverse("auth-mfa-enroll"),
-            {},
-            format="json",
-            HTTP_X_MFA_TOKEN=flow_token,
-        )
-        self.assertEqual(enroll_response.status_code, status.HTTP_200_OK)
-        secret = enroll_response.data["secret"]
+        secret = login_start.data["secret"]
         code = pyotp.TOTP(secret).now()
 
         verify_response = self.client.post(
@@ -235,6 +234,106 @@ class AuthenticationTests(APITestCase):
             format="json",
         )
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        event_types = set(AuditEvent.objects.filter(user=user).values_list("event_type", flat=True))
+        self.assertIn("account.login.challenge.issued", event_types)
+        self.assertIn("account.mfa.enrolled", event_types)
+        self.assertIn("account.mfa.verified", event_types)
+        self.assertIn("account.login", event_types)
+        self.assertIn("account.profile.viewed", event_types)
+        self.assertIn("account.profile.updated", event_types)
+        self.assertIn("account.logout", event_types)
+
+    def test_authenticated_mfa_settings_reenrollment_flow(self):
+        user = User.objects.create_user(
+            email="mfa-settings@example.com",
+            password="VeryStrongPassword123!",
+            is_active=True,
+            mfa_enabled=True,
+            mfa_totp_seed=pyotp.random_base32(),
+        )
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=["email_verified_at", "mfa_enabled", "mfa_totp_seed"])
+
+        login_start = self.client.post(
+            reverse("auth-login-start"),
+            {"email": user.email, "password": "VeryStrongPassword123!"},
+            format="json",
+        )
+        verify_response = self.client.post(
+            reverse("auth-login-verify-mfa"),
+            {"flow_token": login_start.data["flow_token"], "mfa_code": pyotp.TOTP(user.mfa_totp_seed).now()},
+            format="json",
+            HTTP_X_DEVICE_ID="device-settings",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {verify_response.data['access']}")
+
+        enroll_response = self.client.post(reverse("auth-mfa-enroll"), {}, format="json")
+        self.assertEqual(enroll_response.status_code, status.HTTP_200_OK)
+        self.assertIn("secret", enroll_response.data)
+        user.refresh_from_db()
+        self.assertFalse(user.mfa_enabled)
+
+        verify_settings_response = self.client.post(
+            reverse("auth-mfa-verify"),
+            {"mfa_code": pyotp.TOTP(enroll_response.data["secret"]).now()},
+            format="json",
+        )
+        self.assertEqual(verify_settings_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(verify_settings_response.data["recovery_codes"]), 8)
+        user.refresh_from_db()
+        self.assertTrue(user.mfa_enabled)
+
+    def test_pin_and_password_endpoints_work(self):
+        user = User.objects.create_user(
+            email="pin-user@example.com",
+            password="VeryStrongPassword123!",
+            is_active=True,
+            mfa_enabled=True,
+            mfa_totp_seed=pyotp.random_base32(),
+        )
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=["email_verified_at", "mfa_enabled", "mfa_totp_seed"])
+
+        login_start = self.client.post(
+            reverse("auth-login-start"),
+            {"email": user.email, "password": "VeryStrongPassword123!"},
+            format="json",
+        )
+        verify_response = self.client.post(
+            reverse("auth-login-verify-mfa"),
+            {"flow_token": login_start.data["flow_token"], "mfa_code": pyotp.TOTP(user.mfa_totp_seed).now()},
+            format="json",
+            HTTP_X_DEVICE_ID="device-pin",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {verify_response.data['access']}")
+
+        pin_presence = self.client.get(reverse("auth-pin-check"))
+        self.assertEqual(pin_presence.status_code, status.HTTP_200_OK)
+        self.assertFalse(pin_presence.data["has_pin"])
+
+        set_pin_response = self.client.post(reverse("auth-pin-set"), {"pin": "2468"}, format="json")
+        self.assertEqual(set_pin_response.status_code, status.HTTP_200_OK)
+
+        pin_presence = self.client.get(reverse("auth-pin-check"))
+        self.assertTrue(pin_presence.data["has_pin"])
+
+        invalid_pin_response = self.client.post(reverse("auth-pin-check"), {"pin": "1357"}, format="json")
+        self.assertEqual(invalid_pin_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        valid_pin_response = self.client.post(reverse("auth-pin-check"), {"pin": "2468"}, format="json")
+        self.assertEqual(valid_pin_response.status_code, status.HTTP_200_OK)
+
+        weak_pin_response = self.client.post(reverse("auth-pin-set"), {"pin": "1234"}, format="json")
+        self.assertEqual(weak_pin_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        password_change_response = self.client.post(
+            reverse("auth-password-change"),
+            {"current_password": "VeryStrongPassword123!", "new_password": "StrongerPassword456!"},
+            format="json",
+        )
+        self.assertEqual(password_change_response.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("StrongerPassword456!"))
 
     def test_profile_email_change_requires_reverification(self):
         user = User.objects.create_user(

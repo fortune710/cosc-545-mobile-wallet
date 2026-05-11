@@ -1,5 +1,6 @@
 import pyotp
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -13,6 +14,7 @@ User = get_user_model()
 
 class RecipientTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.user = self._create_verified_user(
             email="owner@example.com",
             display_name="Owner",

@@ -4,15 +4,15 @@ import logger from '@/lib/logger'
 
 export const useMfa = () => {
   const enrollMutation = useMutation({
-    mutationFn: (token?: string) => authService.mfaEnroll(token),
+    mutationFn: () => authService.mfaEnroll(),
     onError: (err: any) => {
       logger.error({ err }, 'MFA enroll mutation error')
     }
   })
 
   const verifyMutation = useMutation({
-    mutationFn: ({ code, token }: { code: string; token?: string }) => 
-      authService.mfaVerify(code, token),
+    mutationFn: ({ code }: { code: string }) => 
+      authService.mfaVerify(code),
     onError: (err: any) => {
       logger.error({ err }, 'MFA verify mutation error')
     }

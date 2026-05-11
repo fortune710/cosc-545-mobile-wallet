@@ -8,7 +8,6 @@ type SecureWalletLogoProps = {
 
 export function SecureWalletLogo({ compact = false, light = false, className = '' }: SecureWalletLogoProps) {
   const wordmarkTone = light ? 'text-white' : 'text-zinc-900 dark:text-white'
-  const eyebrowTone = light ? 'text-violet-200/80' : 'text-zinc-500 dark:text-zinc-400'
 
   return (
     <div className={`flex items-center gap-3 ${className}`.trim()}>

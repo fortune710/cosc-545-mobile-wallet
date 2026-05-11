@@ -70,6 +70,7 @@ The frontend currently runs outside Docker. Start it from the `frontend/` direct
 ## Common Commands
 
 - `make up` starts Django and Postgres with Docker Compose
+- `make up-full-backend` starts the full stack in the background and tails only backend logs
 - `make down` stops the backend stack
 - `make logs` tails backend and database logs
 - `make monitor-init` generates Wazuh TLS certificates
@@ -104,6 +105,12 @@ Then start the stack:
 
 ```bash
 make up
+```
+
+To start the full stack in the background while only streaming backend logs in your terminal, use:
+
+```bash
+make up-full-backend
 ```
 
 `make up` generates self-signed Wazuh certificates on first run using `monitoring/wazuh/generate-indexer-certs.yml`.

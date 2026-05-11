@@ -101,6 +101,8 @@ export type LoginStartResponse = {
   email?: string
   mfa_required?: boolean
   mfa_setup_required?: boolean
+  provisioning_url?: string
+  secret?: string
   email_verification_required?: boolean
 }
 

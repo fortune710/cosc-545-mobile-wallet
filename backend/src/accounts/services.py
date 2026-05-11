@@ -3,6 +3,7 @@ import hmac
 import secrets
 import string
 
+import pyotp
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
@@ -69,6 +70,13 @@ def issue_auth_flow_token(user: User, purpose: str):
     )
 
 
+def ensure_mfa_seed(user: User) -> str:
+    if not user.mfa_totp_seed:
+        user.mfa_totp_seed = pyotp.random_base32()
+        user.save(update_fields=["mfa_totp_seed"])
+    return user.mfa_totp_seed
+
+
 def issue_recovery_codes(user: User):
     alphabet = string.ascii_uppercase + string.digits
     plain_codes = []
@@ -115,3 +123,15 @@ def invalidate_session(session_key: str):
     SessionRecord.objects.filter(session_key=session_key, invalidated_at__isnull=True).update(
         invalidated_at=timezone.now()
     )
+
+
+def set_user_pin(user: User, pin: str):
+    user.pin = make_password(pin)
+    user.save(update_fields=["pin"])
+    return user
+
+
+def verify_user_pin(user: User, pin: str) -> bool:
+    if not user.pin:
+        return False
+    return check_password(pin, user.pin)

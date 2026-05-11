@@ -41,7 +41,6 @@ services:
   wazuh.manager:
     image: wazuh/wazuh-manager:${WAZUH_VERSION:-4.14.5}
     hostname: wazuh.manager
-    restart: unless-stopped
     ulimits:
       memlock:
         soft: -1
@@ -86,7 +85,6 @@ services:
   wazuh.indexer:
     image: wazuh/wazuh-indexer:${WAZUH_VERSION:-4.14.5}
     hostname: wazuh.indexer
-    restart: unless-stopped
     environment:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
     ulimits:
@@ -119,7 +117,6 @@ services:
   wazuh.dashboard:
     image: wazuh/wazuh-dashboard:${WAZUH_VERSION:-4.14.5}
     hostname: wazuh.dashboard
-    restart: unless-stopped
     environment:
       INDEXER_USERNAME: ${WAZUH_INDEXER_USERNAME:-admin}
       INDEXER_PASSWORD: ${WAZUH_INDEXER_PASSWORD:-SecretPassword}
@@ -150,7 +147,6 @@ services:
       args:
         WAZUH_VERSION: ${WAZUH_VERSION:-4.14.5}
     hostname: ${WAZUH_AGENT_NAME:-securewallet-host}
-    restart: unless-stopped
     privileged: true
     pid: host
     environment:

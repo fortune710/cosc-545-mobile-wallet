@@ -7,6 +7,9 @@ from accounts.views import (
     MeView,
     MfaEnrollView,
     MfaVerifyView,
+    PasswordChangeView,
+    PinCheckView,
+    PinSetView,
     RecipientDetailView,
     RecipientListCreateView,
     RegenerateRecoveryCodesView,
@@ -30,6 +33,9 @@ auth_urlpatterns = [
     path("mfa/enroll/", MfaEnrollView.as_view(), name="auth-mfa-enroll"),
     path("mfa/verify/", MfaVerifyView.as_view(), name="auth-mfa-verify"),
     path("mfa/recovery-codes/regenerate/", RegenerateRecoveryCodesView.as_view(), name="auth-mfa-recovery-regenerate"),
+    path("pin/check/", PinCheckView.as_view(), name="auth-pin-check"),
+    path("pin/", PinSetView.as_view(), name="auth-pin-set"),
+    path("password/", PasswordChangeView.as_view(), name="auth-password-change"),
     path("sessions/", SessionListView.as_view(), name="auth-sessions"),
 ]
 

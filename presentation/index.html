@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureWallet Presentation</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #172246;
+      --text: #eef2ff;
+      --muted: #a7b2d3;
+      --line: rgba(255, 255, 255, 0.08);
+      --accent: #7c3aed;
+      --accent-2: #38bdf8;
+      --good: #22c55e;
+      --warn: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(124, 58, 237, 0.25), transparent 34%),
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 28%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .deck {
+      width: min(1200px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 24px 0 80px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(9, 13, 28, 0.78);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar h1,
+    .topbar p {
+      margin: 0;
+    }
+
+    .topbar p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .slide {
+      min-height: calc(100vh - 120px);
+      display: grid;
+      align-content: center;
+      gap: 22px;
+      padding: 42px;
+      margin-bottom: 22px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(18, 25, 51, 0.98), rgba(12, 18, 37, 0.96));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+    }
+
+    .kicker {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 12px;
+      border: 1px solid rgba(124, 58, 237, 0.4);
+      border-radius: 999px;
+      color: #d8c8ff;
+      background: rgba(124, 58, 237, 0.14);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .lead {
+      max-width: 920px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(23, 34, 70, 0.88), rgba(16, 24, 50, 0.92));
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 6px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .metric strong {
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .flow .step {
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .flow .step b {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .flow .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .screenshot {
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .screenshot img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .caption {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-good { color: var(--good); }
+    .status-warn { color: var(--warn); }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .slide {
+        min-height: auto;
+        padding: 28px;
+      }
+
+      .grid.two,
+      .grid.three,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <div class="topbar">
+      <div>
+        <h1>SecureWallet</h1>
+        <p>Implementation review and next-step presentation</p>
+      </div>
+      <p>10 slides max • high-level only</p>
+    </div>
+
+    <section class="slide">
+      <span class="kicker">Slide 1</span>
+      <h2>SecureWallet: current implementation, infrastructure, and next steps</h2>
+      <p class="lead">
+        SecureWallet is a micro-payment wallet focused on strong authentication, auditability,
+        tamper-evident transaction integrity, and local-first infrastructure. This presentation
+        summarizes what has been implemented, where the platform stands today, and what should
+        happen next.
+      </p>
+      <div class="grid three">
+        <div class="metric">
+          <strong>$0.01 - $50.00</strong>
+          <span>Supported payment range</span>
+        </div>
+        <div class="metric">
+          <strong>MFA required</strong>
+          <span>Wallet access and payment actions</span>
+        </div>
+        <div class="metric">
+          <strong>Audit + SIEM</strong>
+          <span>Structured logs forwarded to monitoring</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 2</span>
+      <h2>What the product is designed to deliver</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>Core user capabilities</h3>
+          <ul>
+            <li>Registration with verification email and enumeration-safe responses</li>
+            <li>Login using email, password, and TOTP-based MFA</li>
+            <li>Internal wallet top-up, send payment, request payment, and session history</li>
+            <li>Notifications for payments and security-relevant activity</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Critical security expectations</h3>
+          <ul>
+            <li>Append-only audit logging with signed structured records</li>
+            <li>Tamper-evident transaction chain with checkpoints</li>
+            <li>Server-side validation for identity, authorization, and money rules</li>
+            <li>Operational monitoring with endpoint security and SIEM ingestion</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 3</span>
+      <h2>Current implementation status</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>Implemented application areas</h3>
+          <ul>
+            <li>Authentication with email verification, login challenge flow, MFA enrollment, and session tokens</li>
+            <li>Wallet balance, funding, payment intents, payment requests, transaction history, and notifications</li>
+            <li>PIN and password management for signed-in users</li>
+            <li>Role-aware access controls and session tracking</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Verification completed</h3>
+          <ul>
+            <li><span class="status-good">Backend test suite passing</span> after auth and audit hardening</li>
+            <li><span class="status-good">TypeScript compile passing</span> for the frontend codebase</li>
+            <li><span class="status-warn">Frontend Vite runtime blocked</span> by local Node version mismatch during full build/dev verification</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 4</span>
+      <h2>Authentication and account protection</h2>
+      <div class="flow">
+        <div class="step">
+          <b>1. Login start</b>
+          <p>Email and password are validated first, with generic error handling and lockout protection.</p>
+        </div>
+        <div class="step">
+          <b>2. Challenge decision</b>
+          <p>The backend decides whether the user must verify email, enroll MFA, or complete MFA.</p>
+        </div>
+        <div class="step">
+          <b>3. MFA completion</b>
+          <p>Login bootstrap is handled through a single MFA verification contract, including first-time setup.</p>
+        </div>
+        <div class="step">
+          <b>4. Session controls</b>
+          <p>Session issuance, session listing, logout invalidation, PIN status, PIN checks, and password change are server-controlled.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Security posture improvements</h3>
+        <ul>
+          <li>Single login-led MFA path reduces contract drift and fragile client branching</li>
+          <li>Account-management MFA is now separated from login bootstrap</li>
+          <li>PIN and password flows are backed by real server endpoints and audit events</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 5</span>
+      <h2>Transaction integrity and audit model</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>Financial integrity controls</h3>
+          <ul>
+            <li>Per-wallet sequence numbers and chained transaction hashes</li>
+            <li>Signed transaction-chain checkpoints for offline audit verification</li>
+            <li>Atomic debit and credit behavior for money movement</li>
+            <li>Idempotency enforcement for payment creation</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Expanded anomaly detection</h3>
+          <ul>
+            <li>Idempotency mismatch and insufficient funds</li>
+            <li>Owner mismatch for payment and request operations</li>
+            <li>Chain verification, record mismatch, receipt mismatch, and balance mismatch</li>
+            <li>High-signal audit events for SIEM correlation and alerting</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 6</span>
+      <h2>Infrastructure and monitoring stack</h2>
+      <div class="stack">
+        <span class="pill">React frontend</span>
+        <span class="pill">Django + DRF backend</span>
+        <span class="pill">Postgres</span>
+        <span class="pill">Redis</span>
+        <span class="pill">Docker Compose</span>
+        <span class="pill">Wazuh manager</span>
+        <span class="pill">Wazuh dashboard</span>
+        <span class="pill">Wazuh indexer</span>
+        <span class="pill">Wazuh agent</span>
+      </div>
+      <div class="grid two">
+        <div class="card">
+          <h3>Infrastructure responsibilities</h3>
+          <ul>
+            <li>Backend API and database for core wallet behavior</li>
+            <li>Redis for application support services</li>
+            <li>Monitoring stack for log ingestion, correlation, file integrity, and endpoint checks</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Operational visibility</h3>
+          <ul>
+            <li>Structured application and audit logs are mirrored to monitored files</li>
+            <li>Container logs and selected host telemetry are collected by the monitoring agent</li>
+            <li>Local rules classify wallet, auth, integrity, and anomaly events for alerting</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 7</span>
+      <h2>Implementation evidence: API surface</h2>
+      <div class="grid two">
+        <div>
+          <div class="screenshot">
+            <img src="./assets/swagger.png" alt="Swagger UI screenshot" />
+          </div>
+          <div class="caption">Current API documentation exposed locally through the backend.</div>
+        </div>
+        <div class="card">
+          <h3>Why this matters</h3>
+          <ul>
+            <li>Confirms the API-first implementation approach</li>
+            <li>Provides a clean integration point for frontend and testing</li>
+            <li>Supports review of auth, wallet, and operational endpoints without exposing source code</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 8</span>
+      <h2>Implementation evidence: infrastructure and administration</h2>
+      <div class="grid two">
+        <div>
+          <div class="screenshot">
+            <img src="./assets/wazuh-login.png" alt="Wazuh dashboard screenshot" />
+          </div>
+          <div class="caption">Monitoring dashboard entrypoint for the local SIEM stack.</div>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img src="./assets/admin-login.png" alt="Admin login screenshot" />
+          </div>
+          <div class="caption">Administrative interface exposed by the backend stack.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 9</span>
+      <h2>Current gaps and risks</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>Platform and delivery risks</h3>
+          <ul>
+            <li>Frontend runtime/build verification is currently blocked by the machine’s Node version, even though TypeScript compilation is green</li>
+            <li>The current environment still uses weak local development secrets that should be rotated and strengthened</li>
+            <li>Some visual walkthrough evidence is limited by the frontend runtime blocker, so backend and infrastructure views currently dominate the demo</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Operational risks to address next</h3>
+          <ul>
+            <li>Complete browser-level end-to-end verification once the local Node version is aligned</li>
+            <li>Validate Wazuh dashboards and alert flows using generated anomaly events</li>
+            <li>Harden deployment readiness beyond local-first assumptions</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <span class="kicker">Slide 10</span>
+      <h2>Recommended next steps</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>Immediate next actions</h3>
+          <ul>
+            <li>Upgrade local Node to a version compatible with the installed frontend toolchain</li>
+            <li>Run the frontend locally and capture end-to-end wallet and auth screens for the final project demo</li>
+            <li>Exercise live anomaly events to validate alert visibility through the monitoring stack</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Project follow-through</h3>
+          <ul>
+            <li>Prepare a final demo flow: sign up, verify email, MFA setup, set PIN, fund wallet, send payment, review history, inspect monitoring</li>
+            <li>Strengthen deployment configuration and secret handling</li>
+            <li>Continue closing the gap between current local implementation and full non-functional requirements</li>
+          </ul>
+        </div>
+      </div>
+      <p class="footer-note">
+        Presentation artifact created from the current requirements and repository state, with screenshots generated from the running local backend and monitoring stack.
+      </p>
+    </section>
+  </div>
+</body>
+</html>

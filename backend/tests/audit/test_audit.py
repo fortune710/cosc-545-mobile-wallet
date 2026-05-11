@@ -2,6 +2,7 @@ import pyotp
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -16,6 +17,7 @@ User = get_user_model()
 
 class AuditEndpointTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.admin = User.objects.create_superuser(
             email="audit-admin@example.com",
             password="VeryStrongPassword123!",

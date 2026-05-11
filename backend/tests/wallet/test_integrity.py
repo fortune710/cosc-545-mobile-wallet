@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from audit.models import AuditEvent
 from wallet.integrity import checkpoint_wallet_chain, verify_wallet_chain
 from wallet.services import create_funding
 
@@ -38,6 +39,12 @@ class WalletIntegrityTests(TestCase):
 
         self.assertFalse(result.is_valid)
         self.assertEqual(result.failure_reason, "record_hash_mismatch")
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                user=self.user,
+                event_type="wallet.transaction.record_mismatch",
+            ).exists()
+        )
 
     def test_checkpoint_file_is_written_outside_database(self):
         create_funding(self.user, 2500)
@@ -49,3 +56,20 @@ class WalletIntegrityTests(TestCase):
 
         self.assertIsNotNone(path)
         self.assertTrue(path.name.endswith(".json"))
+
+    def test_chain_verification_detects_balance_mismatch(self):
+        create_funding(self.user, 2500)
+        wallet = self.user.wallet
+        wallet.balance = 9999
+        wallet.save(update_fields=["balance"])
+
+        result = verify_wallet_chain(wallet)
+
+        self.assertFalse(result.is_valid)
+        self.assertEqual(result.failure_reason, "balance_mismatch")
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                user=self.user,
+                event_type="wallet.transaction.balance_mismatch",
+            ).exists()
+        )

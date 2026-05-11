@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
@@ -90,6 +91,8 @@ class LoginStartResponseSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
     mfa_required = serializers.BooleanField(required=False)
     mfa_setup_required = serializers.BooleanField(required=False)
+    provisioning_url = serializers.CharField(required=False)
+    secret = serializers.CharField(required=False)
     email_verification_required = serializers.BooleanField(required=False)
 
 
@@ -102,6 +105,10 @@ class LoginVerifyMfaSerializer(serializers.Serializer):
         if not attrs.get("mfa_code") and not attrs.get("recovery_code"):
             raise serializers.ValidationError("Either mfa_code or recovery_code is required.")
         return attrs
+
+
+class MfaSettingsVerifySerializer(serializers.Serializer):
+    mfa_code = serializers.CharField()
 
 
 class AuthResponseSerializer(serializers.Serializer):
@@ -121,6 +128,56 @@ class RefreshSerializer(serializers.Serializer):
 
 class RefreshResponseSerializer(serializers.Serializer):
     access = serializers.CharField()
+
+
+class PinPresenceSerializer(serializers.Serializer):
+    has_pin = serializers.BooleanField()
+
+
+class PinCheckSerializer(serializers.Serializer):
+    pin = serializers.CharField(min_length=4, max_length=16, trim_whitespace=False)
+
+
+class PinSetSerializer(serializers.Serializer):
+    pin = serializers.CharField(min_length=4, max_length=16, trim_whitespace=False)
+
+    def validate_pin(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("PIN must contain only digits.")
+        if len(value) != 4:
+            raise serializers.ValidationError("PIN must be exactly 4 digits.")
+        weak_pins = {
+            "0000", "1111", "2222", "3333", "4444",
+            "5555", "6666", "7777", "8888", "9999",
+            "1234",
+        }
+        if value in weak_pins:
+            raise serializers.ValidationError("Choose a less predictable PIN.")
+        return value
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(trim_whitespace=False)
+    new_password = serializers.CharField(trim_whitespace=False)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not check_password(value, user.password):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        user = self.context["request"].user
+        try:
+            validate_password(value, user=user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages)
+        return value
+
+    def validate(self, attrs):
+        if attrs["current_password"] == attrs["new_password"]:
+            raise serializers.ValidationError({"new_password": ["New password must differ from the current password."]})
+        return attrs
 
 
 class MfaEnrollResponseSerializer(serializers.Serializer):

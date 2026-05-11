@@ -8,6 +8,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.services import receipt_signature
+from audit.events import WalletEvent
+from audit.logger import log_event
 from notifications.constants import (
     NOTIFICATION_BODY_PAYMENT_RECEIVED,
     NOTIFICATION_BODY_PAYMENT_SENT,
@@ -154,6 +156,12 @@ def create_payment_intent(sender: User, recipient_identifier: str, amount: int, 
     if not created and (
         intent.recipient_id != recipient.id or intent.amount != amount or intent.memo != memo
     ):
+        log_event(
+            WalletEvent.PAYMENT_IDEMPOTENCY_MISMATCH,
+            "FAILED",
+            user=sender,
+            metadata={"payment_intent_id": str(intent.id), "result": "idempotency_mismatch"},
+        )
         raise ValueError("Idempotency key is already used for a different payment.")
     return intent
 
@@ -171,6 +179,12 @@ def confirm_payment_intent(intent: PaymentIntent):
         if sender_wallet.balance < intent.amount:
             intent.status = PaymentIntent.Status.FAILED
             intent.save(update_fields=["status"])
+            log_event(
+                WalletEvent.PAYMENT_INSUFFICIENT_FUNDS,
+                "FAILED",
+                user=intent.sender,
+                metadata={"payment_intent_id": str(intent.id), "result": "insufficient_funds"},
+            )
             raise ValueError("Insufficient funds.")
 
         sender_wallet.balance -= intent.amount

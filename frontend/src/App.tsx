@@ -143,7 +143,14 @@ function AppShell() {
             </ProtectedRoute>
           )}
         />
-        <Route path="/mfa" element={<MfaPage />} />
+        <Route
+          path="/mfa"
+          element={(
+            <ProtectedRoute>
+              <MfaPage />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route
           path="/sessions"

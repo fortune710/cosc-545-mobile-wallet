@@ -172,11 +172,10 @@ export const authService = {
     }
   },
 
-  async mfaEnroll(token?: string) {
+  async mfaEnroll() {
     logger.info('Attempting MFA enrollment')
-    const headers = token ? { 'X-MFA-TOKEN': token } : {}
     try {
-      const response = await api.post('/api/auth/mfa/enroll/', {}, { headers })
+      const response = await api.post('/api/auth/mfa/enroll/', {})
       return response.data
     } catch (error: any) {
       logger.error({ error }, 'MFA enrollment failed')
@@ -184,11 +183,11 @@ export const authService = {
     }
   },
 
-  async mfaVerify(code: string, token?: string) {
+  async mfaVerify(code: string) {
     logger.info('Attempting MFA verification')
-    const headers = token ? { 'X-MFA-TOKEN': token } : {}
     try {
-      const response = await api.post('/api/auth/mfa/verify/', { mfa_code: code }, { headers })
+      const response = await api.post('/api/auth/mfa/verify/', { mfa_code: code })
+      logger.info('MFA settings verification complete')
       return response.data
     } catch (error: any) {
       logger.error({ error }, 'MFA verification failed')

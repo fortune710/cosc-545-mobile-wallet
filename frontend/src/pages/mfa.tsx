@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, QrCode, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { toast } from 'sonner'
@@ -13,42 +13,32 @@ import { Spinner } from '@/components/ui/spinner'
 
 export function MfaPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { enroll, verify, provisioningUrl, enrollError, isVerifying } = useMfa()
 
-  const token = searchParams.get('token')
-  const enrolledParam = searchParams.get('enrolled')
-  const [step, setStep] = useState<'scan' | 'verify'>(enrolledParam === 'true' ? 'verify' : 'scan')
+  const [step, setStep] = useState<'scan' | 'verify'>('scan')
   const [mfaCode, setMfaCode] = useState('')
   const [verifyError, setVerifyError] = useState('')
 
   useEffect(() => {
-    if (enrolledParam === 'false' && !token) {
-      toast.error('Please enroll MFA first')
-      navigate('/signup', { replace: true })
-      return
-    }
-    if (step === 'scan') {
-      enroll(token || undefined).catch(() => {})
-    }
-  }, [enroll, token, step, enrolledParam, navigate])
+    enroll().catch(() => {})
+  }, [enroll])
 
   const handleBack = () => {
     if (step === 'verify') {
       setStep('scan')
       setMfaCode('')
       setVerifyError('')
-    } else {
-      navigate(-1)
+      return
     }
+    navigate('/more')
   }
 
   const handleVerify = async () => {
     if (mfaCode.length !== 6) return
     try {
-      await verify({ code: mfaCode, token: token || undefined })
-      toast.success('MFA enabled successfully')
-      navigate('/home', { replace: true })
+      await verify({ code: mfaCode })
+      toast.success('MFA re-enrolled successfully')
+      navigate('/more', { replace: true })
     } catch {
       setVerifyError('Invalid verification code. Please try again.')
       setMfaCode('')
@@ -74,10 +64,10 @@ export function MfaPage() {
                 <QrCode className="size-8" strokeWidth={1.5} />
               </div>
               <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
-                Set up authenticator
+                Re-enroll authenticator
               </h1>
               <p className="mt-2 max-w-xs text-[14px] text-zinc-500 dark:text-zinc-400">
-                Scan this QR code with Google Authenticator, Authy, or any TOTP app.
+                Scan this QR code with your authenticator app to replace the current MFA device.
               </p>
 
               <div className="mt-8 inline-block rounded-2xl border border-zinc-100 bg-white p-5 shadow-md dark:border-zinc-800 dark:bg-zinc-900">
@@ -108,7 +98,7 @@ export function MfaPage() {
                 <ShieldCheck className="size-8" strokeWidth={1.5} />
               </div>
               <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
-                Enter verification code
+                Confirm authenticator
               </h1>
               <p className="mt-2 max-w-xs text-[14px] text-zinc-500 dark:text-zinc-400">
                 Enter the 6-digit code from your authenticator app
@@ -144,7 +134,7 @@ export function MfaPage() {
                 disabled={mfaCode.length !== 6 || isVerifying}
                 className="mt-7 h-11 w-full max-w-xs rounded-xl bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700"
               >
-                {isVerifying ? <Spinner /> : 'Verify & Enable MFA'}
+                {isVerifying ? <Spinner /> : 'Verify & Save'}
               </Button>
             </>
           )}

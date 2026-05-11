@@ -1,7 +1,7 @@
 COMPOSE := docker compose
 WAZUH_CERTS := monitoring/wazuh/config/wazuh_indexer_ssl_certs/root-ca.pem
 
-.PHONY: up down logs shell migrate makemigrations superuser test monitor-init monitor-up monitor-down monitor-logs
+.PHONY: up up-full-backend backend down logs shell migrate makemigrations superuser test monitor-init monitor-up monitor-down monitor-logs
 
 up:
 	@if [ ! -f "$(WAZUH_CERTS)" ]; then \
@@ -9,6 +9,17 @@ up:
 		$(COMPOSE) -f monitoring/wazuh/generate-indexer-certs.yml run --rm generator; \
 	fi
 	$(COMPOSE) up --build
+
+up-full-backend:
+	@if [ ! -f "$(WAZUH_CERTS)" ]; then \
+		echo "Generating Wazuh certificates..."; \
+		$(COMPOSE) -f monitoring/wazuh/generate-indexer-certs.yml run --rm generator; \
+	fi
+	$(COMPOSE) up -d --build
+	$(COMPOSE) logs -f backend
+
+backend:
+	$(COMPOSE) up --build backend db
 
 down:
 	$(COMPOSE) down

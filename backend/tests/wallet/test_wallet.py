@@ -1,11 +1,13 @@
 import pyotp
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from audit.models import AuditEvent
 from wallet.integrity import verify_wallet_chain
 from wallet.models import PaymentRequest
 
@@ -15,6 +17,7 @@ User = get_user_model()
 
 class WalletFlowTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.sender = User.objects.create_user(
             email="sender@example.com",
             password="VeryStrongPassword123!",
@@ -102,6 +105,12 @@ class WalletFlowTests(APITestCase):
         self.assertTrue(sender_transactions[0].chain_signature)
         self.assertIsNotNone(sender_transactions[0].immutable_at)
         self.assertTrue(verify_wallet_chain(sender_wallet).is_valid)
+        event_types = set(AuditEvent.objects.filter(user=self.sender).values_list("event_type", flat=True))
+        self.assertIn("wallet.balance.credited", event_types)
+        self.assertIn("wallet.payment.initiated", event_types)
+        self.assertIn("wallet.payment.confirmed", event_types)
+        self.assertIn("wallet.balance.viewed", event_types)
+        self.assertIn("wallet.transaction_history.viewed", event_types)
 
     def test_payment_request_can_be_approved(self):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
@@ -149,6 +158,48 @@ class WalletFlowTests(APITestCase):
 
         payment_request = PaymentRequest.objects.get(id=payment_request_id)
         self.assertEqual(payment_request.status, PaymentRequest.Status.APPROVED)
+        sender_events = set(AuditEvent.objects.filter(user=self.sender).values_list("event_type", flat=True))
+        recipient_events = set(AuditEvent.objects.filter(user=self.recipient).values_list("event_type", flat=True))
+        self.assertIn("wallet.payment_request.created", recipient_events)
+        self.assertIn("wallet.payment_request.approved", sender_events)
+
+    def test_payment_idempotency_mismatch_is_audited(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
+        self.client.post(
+            reverse("wallet-fund"),
+            {
+                "amount": "25.00",
+                "cardholder_name": "SecureWallet Demo",
+                "card_number": "4242 4242 4242 4242",
+                "expiry_month": "12",
+                "expiry_year": "34",
+                "cvv": "123",
+            },
+            format="json",
+        )
+
+        key = "8d5672a2-7a62-4b14-a7eb-d8cb37d55980"
+        first = self.client.post(
+            reverse("payment-intent-create"),
+            {"recipient": self.recipient.email, "amount": "5.00", "memo": "Lunch"},
+            format="json",
+            HTTP_X_IDEMPOTENCY_KEY=key,
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+
+        second = self.client.post(
+            reverse("payment-intent-create"),
+            {"recipient": self.recipient.email, "amount": "6.00", "memo": "Dinner"},
+            format="json",
+            HTTP_X_IDEMPOTENCY_KEY=key,
+        )
+        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                user=self.sender,
+                event_type="wallet.payment.idempotency_mismatch",
+            ).exists()
+        )
 
     def test_demo_funding_rejects_non_test_card(self):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
