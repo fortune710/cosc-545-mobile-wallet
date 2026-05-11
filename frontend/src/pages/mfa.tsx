@@ -13,15 +13,17 @@ import { Spinner } from '@/components/ui/spinner'
 
 export function MfaPage() {
   const navigate = useNavigate()
-  const { enroll, verify, provisioningUrl, enrollError, isVerifying } = useMfa()
+  const { enroll, verify, provisioningUrl, enrollError, isEnrolling, isVerifying } = useMfa()
 
-  const [step, setStep] = useState<'scan' | 'verify'>('scan')
+  const [step, setStep] = useState<'overview' | 'scan' | 'verify'>('overview')
   const [mfaCode, setMfaCode] = useState('')
   const [verifyError, setVerifyError] = useState('')
 
   useEffect(() => {
+    if (step !== 'scan') return
+    if (provisioningUrl) return
     enroll().catch(() => {})
-  }, [enroll])
+  }, [step, provisioningUrl, enroll])
 
   const handleBack = () => {
     if (step === 'verify') {
@@ -30,7 +32,19 @@ export function MfaPage() {
       setVerifyError('')
       return
     }
+    if (step === 'scan') {
+      setStep('overview')
+      setMfaCode('')
+      setVerifyError('')
+      return
+    }
     navigate('/more')
+  }
+
+  const handleStartReenrollment = () => {
+    setVerifyError('')
+    setMfaCode('')
+    setStep('scan')
   }
 
   const handleVerify = async () => {
@@ -58,7 +72,26 @@ export function MfaPage() {
         </button>
 
         <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
-          {step === 'scan' ? (
+          {step === 'overview' ? (
+            <>
+              <div className="grid size-16 place-items-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">
+                <ShieldCheck className="size-8" strokeWidth={1.5} />
+              </div>
+              <h1 className="mt-5 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+                Two-factor authentication
+              </h1>
+              <p className="mt-2 max-w-sm text-[14px] text-zinc-500 dark:text-zinc-400">
+                Your authenticator is already protecting this account. Re-enroll only when you are replacing the current device.
+              </p>
+
+              <Button
+                onClick={handleStartReenrollment}
+                className="mt-8 h-11 w-full max-w-xs rounded-xl bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700"
+              >
+                Re-enroll authenticator
+              </Button>
+            </>
+          ) : step === 'scan' ? (
             <>
               <div className="grid size-16 place-items-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">
                 <QrCode className="size-8" strokeWidth={1.5} />
@@ -73,6 +106,10 @@ export function MfaPage() {
               <div className="mt-8 inline-block rounded-2xl border border-zinc-100 bg-white p-5 shadow-md dark:border-zinc-800 dark:bg-zinc-900">
                 {provisioningUrl ? (
                   <QRCodeSVG value={provisioningUrl} size={160} />
+                ) : isEnrolling ? (
+                  <div className="flex size-40 items-center justify-center">
+                    <Spinner />
+                  </div>
                 ) : (
                   <div className="size-40 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
                 )}
