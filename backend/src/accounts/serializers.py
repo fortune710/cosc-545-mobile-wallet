@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from accounts.models import Recipient, SessionRecord
-from accounts.validators import is_disposable_email
+from accounts.validators import is_disposable_email, validate_phone_number
 
 User = get_user_model()
 
@@ -66,6 +66,12 @@ class RegisterSerializer(serializers.Serializer):
         if is_disposable_email(normalized):
             raise serializers.ValidationError("Disposable email addresses are not allowed.")
         return normalized
+
+    def validate_phone_number(self, value):
+        try:
+            return validate_phone_number(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
 
 
 class GenericDetailSerializer(serializers.Serializer):
@@ -128,6 +134,7 @@ class RefreshSerializer(serializers.Serializer):
 
 class RefreshResponseSerializer(serializers.Serializer):
     access = serializers.CharField()
+    refresh = serializers.CharField()
 
 
 class PinPresenceSerializer(serializers.Serializer):
@@ -241,3 +248,9 @@ class ProfileUpdateSerializer(serializers.Serializer):
         if is_disposable_email(normalized):
             raise serializers.ValidationError("Disposable email addresses are not allowed.")
         return normalized
+
+    def validate_phone_number(self, value):
+        try:
+            return validate_phone_number(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))

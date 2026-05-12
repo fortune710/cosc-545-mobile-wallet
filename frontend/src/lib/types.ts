@@ -84,7 +84,9 @@ export type AuthUser = {
   firstName: string
   lastName: string
   email: string
+  phoneNumber?: string
   emailVerified?: boolean
+  mfaEnabled?: boolean
 }
 
 export type PinPresenceResponse = {
@@ -114,6 +116,11 @@ export type LoginVerifyResponse = {
     email?: string
   }
   recovery_codes?: string[]
+}
+
+export type SessionRefreshResponse = {
+  access: string
+  refresh: string
 }
 
 /** @deprecated use LoginStartResponse / LoginVerifyResponse */

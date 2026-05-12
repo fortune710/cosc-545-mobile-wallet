@@ -46,15 +46,15 @@ export const recipientsService = {
     }
   },
 
-  async addRecipient(recipientId: string): Promise<Recipient> {
-    logger.info({ recipientId }, 'Adding recipient')
+  async addRecipient(recipientIdentifier: string): Promise<Recipient> {
+    logger.info({ recipientIdentifier }, 'Adding recipient')
     try {
       const response = await api.post('/api/recipients/', {
-        recipient: recipientId
+        recipient: recipientIdentifier
       })
       return mapRecipient(response.data)
     } catch (error: any) {
-      logger.error({ recipientId, error }, 'Failed to add recipient')
+      logger.error({ recipientIdentifier, error }, 'Failed to add recipient')
       throw error
     }
   },

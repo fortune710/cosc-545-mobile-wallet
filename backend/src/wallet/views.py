@@ -7,6 +7,7 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -45,6 +46,12 @@ from wallet.services import (
 )
 
 User = get_user_model()
+
+
+class TransactionPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
 
 
 class WalletBalanceView(APIView):
@@ -214,6 +221,7 @@ class PaymentRequestDeclineView(APIView):
 class TransactionListView(ListAPIView):
     permission_classes = [IsVerifiedMfaAuthenticated]
     serializer_class = TransactionSerializer
+    pagination_class = TransactionPagination
 
     def get_queryset(self):
         serializer = TransactionQuerySerializer(data=self.request.query_params)
@@ -235,6 +243,10 @@ class TransactionListView(ListAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         log_event(WalletEvent.TRANSACTION_HISTORY_VIEWED, "SUCCESS", user=request.user, request=request, metadata={"transaction_count": queryset.count()})
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 

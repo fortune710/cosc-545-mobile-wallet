@@ -1,6 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import uuid4
+from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -11,6 +12,7 @@ from accounts.services import receipt_signature
 from audit.events import WalletEvent
 from audit.logger import log_event
 from notifications.constants import (
+    NOTIFICATION_BODY_FUNDING_COMPLETED,
     NOTIFICATION_BODY_PAYMENT_RECEIVED,
     NOTIFICATION_BODY_PAYMENT_SENT,
     NOTIFICATION_BODY_REQUEST_CREATED,
@@ -18,6 +20,7 @@ from notifications.constants import (
     NOTIFICATION_BODY_REQUEST_EXPIRED,
     NOTIFICATION_BODY_REQUEST_APPROVED,
     NOTIFICATION_BODY_REQUEST_RECEIVED,
+    NOTIFICATION_TITLE_FUNDING_COMPLETED,
     NOTIFICATION_TITLE_PAYMENT_RECEIVED,
     NOTIFICATION_TITLE_PAYMENT_SENT,
     NOTIFICATION_TITLE_REQUEST_DECLINED,
@@ -28,6 +31,7 @@ from notifications.constants import (
 )
 from notifications.models import NotificationType
 from notifications.services import create_notification
+from notifications.utils import notify_insufficient_funds
 from wallet.integrity import checkpoint_wallet_chain
 from wallet.constants import (
     MAX_FUNDING_CENTS,
@@ -48,7 +52,21 @@ def decimal_to_cents(value: Decimal) -> int:
 
 
 def resolve_recipient(identifier: str) -> User:
-    return User.objects.get(Q(email__iexact=identifier) | Q(display_name__iexact=identifier))
+    try:
+        recipient_id = UUID(str(identifier))
+    except (TypeError, ValueError):
+        recipient_id = None
+
+    if recipient_id is not None:
+        try:
+            return User.objects.get(pk=recipient_id)
+        except User.DoesNotExist:
+            raise ValueError("No account found for the selected user.")
+
+    try:
+        return User.objects.get(Q(email__iexact=identifier) | Q(display_name__iexact=identifier))
+    except User.DoesNotExist:
+        raise ValueError("No account found with that email address.")
 
 
 def ensure_wallet(user: User) -> Wallet:
@@ -132,6 +150,12 @@ def create_funding(user: User, amount: int):
             status=Transaction.Status.COMPLETED,
             memo="Internal funding",
         )
+        create_notification(
+            user=user,
+            title=NOTIFICATION_TITLE_FUNDING_COMPLETED,
+            body=NOTIFICATION_BODY_FUNDING_COMPLETED.format(amount=amount / 100),
+            notification_type=NotificationType.SYSTEM,
+        )
     return wallet, txn
 
 
@@ -142,6 +166,22 @@ def create_payment_intent(sender: User, recipient_identifier: str, amount: int, 
     recipient = resolve_recipient(recipient_identifier)
     if recipient.pk == sender.pk:
         raise ValueError("You cannot send funds to yourself.")
+
+    sender_wallet = ensure_wallet(sender)
+    if sender_wallet.balance < amount:
+        log_event(
+            WalletEvent.PAYMENT_INSUFFICIENT_FUNDS,
+            "FAILED",
+            user=sender,
+            metadata={
+                "attempted_amount_cents": amount,
+                "available_balance_cents": sender_wallet.balance,
+                "recipient_id": str(recipient.pk),
+                "result": "insufficient_funds",
+            },
+        )
+        notify_insufficient_funds(sender, amount, sender_wallet.balance)
+        raise ValueError("Insufficient funds.")
 
     intent, created = PaymentIntent.objects.get_or_create(
         sender=sender,
@@ -183,8 +223,15 @@ def confirm_payment_intent(intent: PaymentIntent):
                 WalletEvent.PAYMENT_INSUFFICIENT_FUNDS,
                 "FAILED",
                 user=intent.sender,
-                metadata={"payment_intent_id": str(intent.id), "result": "insufficient_funds"},
+                metadata={
+                    "payment_intent_id": str(intent.id),
+                    "attempted_amount_cents": intent.amount,
+                    "available_balance_cents": sender_wallet.balance,
+                    "recipient_id": str(intent.recipient_id),
+                    "result": "insufficient_funds",
+                },
             )
+            notify_insufficient_funds(intent.sender, intent.amount, sender_wallet.balance)
             raise ValueError("Insufficient funds.")
 
         sender_wallet.balance -= intent.amount

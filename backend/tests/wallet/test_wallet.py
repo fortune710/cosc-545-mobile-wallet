@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from audit.models import AuditEvent
+from notifications.models import Notification
 from wallet.integrity import verify_wallet_chain
 from wallet.models import PaymentRequest
 
@@ -74,6 +75,13 @@ class WalletFlowTests(APITestCase):
         )
         self.assertEqual(fund_response.status_code, status.HTTP_200_OK)
         self.assertEqual(fund_response.data["balance"], 2500)
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.sender,
+                title="Funds added",
+                body="$25.00 was added to your wallet balance.",
+            ).exists()
+        )
 
         intent_response = self.client.post(
             reverse("payment-intent-create"),
@@ -95,7 +103,8 @@ class WalletFlowTests(APITestCase):
 
         history_response = self.client.get(reverse("transaction-list"))
         self.assertEqual(history_response.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(history_response.data), 2)
+        self.assertIn("results", history_response.data)
+        self.assertGreaterEqual(len(history_response.data["results"]), 2)
 
         sender_wallet = self.sender.wallet
         sender_transactions = list(sender_wallet.transactions.order_by("sequence_number"))
@@ -111,6 +120,66 @@ class WalletFlowTests(APITestCase):
         self.assertIn("wallet.payment.confirmed", event_types)
         self.assertIn("wallet.balance.viewed", event_types)
         self.assertIn("wallet.transaction_history.viewed", event_types)
+
+    def test_payment_intent_accepts_selected_user_id(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
+        self.client.post(
+            reverse("wallet-fund"),
+            {
+                "amount": "25.00",
+                "cardholder_name": "SecureWallet Demo",
+                "card_number": "4242 4242 4242 4242",
+                "expiry_month": "12",
+                "expiry_year": "34",
+                "cvv": "123",
+            },
+            format="json",
+        )
+
+        intent_response = self.client.post(
+            reverse("payment-intent-create"),
+            {"recipient": str(self.recipient.id), "amount": "5.00", "memo": "Lunch"},
+            format="json",
+            HTTP_X_IDEMPOTENCY_KEY="42af0b69-03b7-49fd-bf67-031d8db82263",
+        )
+
+        self.assertEqual(intent_response.status_code, status.HTTP_201_CREATED)
+
+    def test_payment_request_accepts_selected_user_id(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.recipient_tokens['access']}")
+        response = self.client.post(
+            reverse("payment-request-list-create"),
+            {"target_user": str(self.sender.id), "amount": "4.00", "memo": "Split"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], PaymentRequest.Status.PENDING)
+
+    def test_insufficient_funds_attempt_creates_security_notification_and_audit_event(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")
+
+        response = self.client.post(
+            reverse("payment-intent-create"),
+            {"recipient": str(self.recipient.id), "amount": "5.00", "memo": "Lunch"},
+            format="json",
+            HTTP_X_IDEMPOTENCY_KEY="4fd99c5b-f1df-4dd8-a3f7-d1cfdef0b0bd",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "Insufficient funds.")
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                user=self.sender,
+                event_type="wallet.payment.insufficient_funds",
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.sender,
+                title="Blocked transfer attempt",
+            ).exists()
+        )
 
     def test_payment_request_can_be_approved(self):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.sender_tokens['access']}")

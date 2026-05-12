@@ -71,7 +71,7 @@ export function useTransactionHistory(filters: Filters) {
       dateTimeUtc: tx.date_time_utc,
       type: mapTypeToLocal(tx.type),
       counterpartyDisplayName: tx.counterparty_display_name || 'Unknown',
-      amount: Math.round(parseFloat(tx.amount) * 100),
+      amount: parseFloat(tx.amount),
       memo: tx.memo,
       status: mapStatusToLocal(tx.status),
     }))

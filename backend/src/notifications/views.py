@@ -72,7 +72,7 @@ class RecipientViewSet(viewsets.ModelViewSet):
             log_event(RecipientEvent.RECIPIENT_SEARCH_PERFORMED, "SUCCESS", user=request.user, request=request, metadata={"result": "empty_query"})
             return Response([])
         users = (
-            User.objects.filter(is_active=True, email_verified_at__isnull=False, mfa_enabled=True)
+            User.objects.filter(is_active=True)
             .exclude(pk=request.user.pk)
             .filter(
                 Q(email__icontains=query)

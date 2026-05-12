@@ -27,3 +27,13 @@ export class InsufficientPermissionsError extends AuthError {
     this.name = 'InsufficientPermissionsError'
   }
 }
+
+export class ApiRequestError extends AuthError {
+  status?: number
+
+  constructor(message: string, status?: number, code: string = 'API_REQUEST_FAILED') {
+    super(message, code)
+    this.name = 'ApiRequestError'
+    this.status = status
+  }
+}

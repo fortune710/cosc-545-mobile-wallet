@@ -3,6 +3,20 @@ import logger from '@/lib/logger'
 import type { BalanceResponse, ApiTransaction, TransactionFilters, PaginatedResponse } from '@/lib/types'
 import { authService } from '@/services/auth-service'
 
+function normalizeTransactionResponse(
+  data: PaginatedResponse<ApiTransaction> | ApiTransaction[],
+): PaginatedResponse<ApiTransaction> {
+  if (Array.isArray(data)) {
+    return {
+      count: data.length,
+      next: null,
+      previous: null,
+      results: data,
+    }
+  }
+  return data
+}
+
 export const transactionService = {
   async getBalance(): Promise<BalanceResponse> {
     logger.info('Fetching wallet balance')
@@ -46,7 +60,7 @@ export const transactionService = {
       if (filters?.pageSize) params.page_size = filters.pageSize
 
       const response = await api.get('/api/transactions/', { params })
-      return response.data
+      return normalizeTransactionResponse(response.data)
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch transactions')
       throw authService.handleApiError(error)

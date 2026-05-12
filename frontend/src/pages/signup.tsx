@@ -12,9 +12,11 @@ import { Label } from '@/components/ui/label'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { authService } from '@/services/auth-service'
 import { signUpSchema } from '@/lib/schemas/auth'
+import { ApiRequestError } from '@/lib/errors/auth'
 
 export function SignUpPage() {
-    const [fullName, setFullName] = useState('')
+    const [firstName, setFirstName] = useState('')
+    const [lastName, setLastName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
@@ -22,8 +24,9 @@ export function SignUpPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [registered, setRegistered] = useState(false)
 
-    const validation = useMemo(() => signUpSchema.safeParse({ fullName, email, password }), [fullName, email, password])
-    const fullNameIsValid = fullName.length > 0 ? signUpSchema.shape.fullName.safeParse(fullName).success : true
+    const validation = useMemo(() => signUpSchema.safeParse({ firstName, lastName, email, password }), [firstName, lastName, email, password])
+    const firstNameIsValid = firstName.length > 0 ? signUpSchema.shape.firstName.safeParse(firstName).success : true
+    const lastNameIsValid = lastName.length > 0 ? signUpSchema.shape.lastName.safeParse(lastName).success : true
     const emailIsValid = email.length > 0 ? signUpSchema.shape.email.safeParse(email).success : true
     const passwordIsValid = password.length > 0 ? signUpSchema.shape.password.safeParse(password).success : true
     const canSubmit = validation.success && !isSubmitting
@@ -36,14 +39,14 @@ export function SignUpPage() {
         setErrorMessage('')
 
         try {
-            await authService.signUp({ fullName, email, password })
+            await authService.signUp({ firstName, lastName, email, password })
             setRegistered(true)
         } catch (error: any) {
-            const apiError =
-                error.response?.data?.detail ||
-                error.response?.data?.email?.[0] ||
-                error.response?.data?.non_field_errors?.[0]
-            setErrorMessage(apiError || 'Failed to create account. Please try again.')
+            if (error instanceof ApiRequestError || error instanceof Error) {
+                setErrorMessage(error.message || 'Failed to create account. Please try again.')
+            } else {
+                setErrorMessage('Failed to create account. Please try again.')
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -87,22 +90,41 @@ export function SignUpPage() {
                         </div>
 
                         <form onSubmit={handleSignUp} className="space-y-5" noValidate>
-                            <div>
-                                <Label htmlFor="fullName" className="mb-1.5 block text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">
-                                    Full name
-                                </Label>
-                                <Input
-                                    id="fullName"
-                                    type="text"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    autoComplete="name"
-                                    className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-white dark:focus:border-violet-600 dark:focus:bg-zinc-800"
-                                    placeholder="John Doe"
-                                />
-                                {fullName.length > 0 && !fullNameIsValid && (
-                                    <p className="mt-1.5 text-[12px] text-red-500">Full name must be at least 2 characters.</p>
-                                )}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <Label htmlFor="firstName" className="mb-1.5 block text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                        First name
+                                    </Label>
+                                    <Input
+                                        id="firstName"
+                                        type="text"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        autoComplete="given-name"
+                                        className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-white dark:focus:border-violet-600 dark:focus:bg-zinc-800"
+                                        placeholder="John"
+                                    />
+                                    {firstName.length > 0 && !firstNameIsValid && (
+                                        <p className="mt-1.5 text-[12px] text-red-500">First name is required.</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <Label htmlFor="lastName" className="mb-1.5 block text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                        Last name
+                                    </Label>
+                                    <Input
+                                        id="lastName"
+                                        type="text"
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        autoComplete="family-name"
+                                        className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-white dark:focus:border-violet-600 dark:focus:bg-zinc-800"
+                                        placeholder="Doe"
+                                    />
+                                    {lastName.length > 0 && !lastNameIsValid && (
+                                        <p className="mt-1.5 text-[12px] text-red-500">Last name is required.</p>
+                                    )}
+                                </div>
                             </div>
 
                             <div>

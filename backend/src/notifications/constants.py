@@ -46,11 +46,17 @@ SECURITY_TITLE_FIRST_TIME_LARGE_TXN = "Large transaction to a first-time recipie
 SECURITY_BODY_FIRST_TIME_LARGE_TXN = "You sent ${amount:.2f} to {recipient}."
 SECURITY_TITLE_HIGH_FREQUENCY = "High transaction activity"
 SECURITY_BODY_HIGH_FREQUENCY = "We detected more than 5 transactions in a 10-minute window."
+SECURITY_TITLE_INSUFFICIENT_FUNDS = "Blocked transfer attempt"
+SECURITY_BODY_INSUFFICIENT_FUNDS = (
+    "A transfer of ${amount:.2f} was blocked because your available balance was ${balance:.2f}."
+)
 
 NOTIFICATION_TITLE_PAYMENT_SENT = "Payment sent"
 NOTIFICATION_BODY_PAYMENT_SENT = "You sent ${amount:.2f} to {recipient}."
 NOTIFICATION_TITLE_PAYMENT_RECEIVED = "Payment received"
 NOTIFICATION_BODY_PAYMENT_RECEIVED = "You received ${amount:.2f} from {sender}."
+NOTIFICATION_TITLE_FUNDING_COMPLETED = "Funds added"
+NOTIFICATION_BODY_FUNDING_COMPLETED = "${amount:.2f} was added to your wallet balance."
 NOTIFICATION_TITLE_REQUEST_RECEIVED = "Payment request received"
 NOTIFICATION_BODY_REQUEST_RECEIVED = "{requester} requested ${amount:.2f}."
 NOTIFICATION_TITLE_REQUEST_CREATED = "Payment request created"

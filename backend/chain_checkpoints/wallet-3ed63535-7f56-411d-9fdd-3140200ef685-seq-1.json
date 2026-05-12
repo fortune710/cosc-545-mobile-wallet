@@ -1,0 +1,10 @@
+{
+  "anchored_at": "2026-05-11T15:21:16.902861+00:00",
+  "failed_transaction_id": "",
+  "failure_reason": "",
+  "is_valid": true,
+  "last_record_hash": "227779784e86a8bf123b4724d7b3aee01500f0dfc534d35ba67af81d8338ec5f",
+  "last_sequence_number": 1,
+  "transaction_count": 1,
+  "wallet_id": "3ed63535-7f56-411d-9fdd-3140200ef685"
+}
