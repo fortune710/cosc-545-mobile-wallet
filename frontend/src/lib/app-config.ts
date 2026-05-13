@@ -1,5 +1,5 @@
 export const config = {
-  appName: 'SecureWallet',
+  appName: 'AuraPay',
   maxPaymentAmount: 50,
   minPasswordLength: 12,
   pinLength: 4,

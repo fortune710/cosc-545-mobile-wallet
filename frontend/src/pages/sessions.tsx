@@ -98,7 +98,7 @@ export function SessionsPage() {
   return (
     <SettingsLayout title="Active Devices" backTo="/more" backLabel="Settings">
       <p className="mb-5 text-[14px] text-zinc-500 dark:text-zinc-400">
-        These are the devices that have accessed your SecureWallet account. Each sign-in creates a new session entry.
+        These are the devices that have accessed your AuraPay account. Each sign-in creates a new session entry.
       </p>
 
       <section className="mb-6">

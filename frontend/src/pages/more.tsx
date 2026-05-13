@@ -132,7 +132,7 @@ export function MorePage() {
       </section>
 
       <div className="pb-28 md:pb-4 text-center flex flex-col items-center gap-1.5 opacity-40">
-        <p className="text-zinc-500 text-[12px] font-medium tracking-wider uppercase">SecureWallet</p>
+        <p className="text-zinc-500 text-[12px] font-medium tracking-wider uppercase">AuraPay</p>
         <p className="text-zinc-400 text-[12px]">Version 1.0.0</p>
       </div>
     </SettingsLayout>

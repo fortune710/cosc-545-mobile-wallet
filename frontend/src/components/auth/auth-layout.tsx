@@ -3,7 +3,7 @@ import { SecureWalletLogo } from '@/components/brand/securewallet-logo'
 
 const quote = {
   text: 'Send money with total confidence.',
-  sub: 'SecureWallet protects every transaction with verified identity, real-time security checks, and zero guesswork.',
+  sub: 'AuraPay protects every transaction with verified identity, real-time security checks, and zero guesswork.',
 }
 
 export function AuthLayout({ children }: { children: ReactNode }) {

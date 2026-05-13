@@ -21,7 +21,7 @@ type Screen =
     | 'changePassword'
     | 'profile'
 
-const APP_NAME = 'SecureWallet'
+const APP_NAME = 'AuraPay'
 const MOCK_CURRENT_PIN = '1234'
 const LOCKOUT_MS = 6000
 

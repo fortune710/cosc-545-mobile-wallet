@@ -23,7 +23,7 @@ const MIN_AMOUNT = 1
 const MAX_AMOUNT = 500
 const quickAmounts = [10, 25, 50, 100]
 const DEMO_CARD = {
-  cardholder_name: 'SecureWallet Demo',
+  cardholder_name: 'AuraPay Demo',
   card_number: '4242 4242 4242 4242',
   expiry_month: '12',
   expiry_year: '34',
@@ -56,10 +56,10 @@ export function AddBalancePage() {
     () =>
       Boolean(
         cardholderName.trim() &&
-          cardNumber.trim() &&
-          expiryMonth.trim() &&
-          expiryYear.trim() &&
-          cvv.trim(),
+        cardNumber.trim() &&
+        expiryMonth.trim() &&
+        expiryYear.trim() &&
+        cvv.trim(),
       ),
     [cardholderName, cardNumber, cvv, expiryMonth, expiryYear],
   )
@@ -169,7 +169,7 @@ export function AddBalancePage() {
                   setCardholderName(event.target.value)
                   resetErrors()
                 }}
-                placeholder="SecureWallet Demo"
+                placeholder="AuraPay Demo"
               />
             </div>
 
