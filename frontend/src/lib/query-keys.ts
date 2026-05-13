@@ -3,6 +3,7 @@ import type { TransactionFilters } from './types'
 export const queryKeys = {
   currentUser: ['currentUser'] as const,
   hasPin: ['hasPin'] as const,
+  sessions: ['sessions'] as const,
   balance: ['balance'] as const,
   transactions: (filters?: TransactionFilters) => ['transactions', filters] as const,
   notifications: (page?: number) => ['notifications', page ?? 1] as const,

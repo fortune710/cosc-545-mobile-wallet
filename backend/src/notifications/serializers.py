@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from uuid import UUID
 
 from .models import Notification, Recipient
 
@@ -21,7 +22,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class RecipientSerializer(serializers.ModelSerializer):
-    recipient = serializers.EmailField(write_only=True)
+    recipient = serializers.CharField(write_only=True)
     display_name = serializers.SerializerMethodField()
     email = serializers.EmailField(source="recipient.email", read_only=True)
 
@@ -44,12 +45,23 @@ class RecipientSerializer(serializers.ModelSerializer):
             or obj.recipient.email
         )
 
+    def _resolve_recipient_user(self, value):
+        try:
+            recipient_id = UUID(str(value))
+        except (TypeError, ValueError):
+            recipient_id = None
+
+        if recipient_id is not None:
+            return User.objects.filter(pk=recipient_id).first()
+
+        return User.objects.filter(email__iexact=value).first()
+
     def validate_recipient(self, value):
         request = self.context.get("request")
         user = getattr(request, "user", None)
-        recipient = User.objects.filter(email__iexact=value).first()
+        recipient = self._resolve_recipient_user(value)
         if not recipient:
-            raise serializers.ValidationError("No user was found with that email address.")
+            raise serializers.ValidationError("No user was found for that selection.")
         if user and recipient.pk == user.pk:
             raise serializers.ValidationError("You cannot add yourself as a recipient.")
         if user and Recipient.objects.filter(user=user, recipient=recipient).exists():
@@ -57,8 +69,8 @@ class RecipientSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        recipient_email = validated_data.pop("recipient")
-        validated_data["recipient"] = User.objects.get(email__iexact=recipient_email)
+        recipient_identifier = validated_data.pop("recipient")
+        validated_data["recipient"] = self._resolve_recipient_user(recipient_identifier)
         return super().create(validated_data)
 
 

@@ -6,7 +6,7 @@ from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import AuthFlowToken, EmailVerificationToken, MfaRecoveryCode, Recipient as AccountRecipient, SessionRecord, User
-from accounts.services import build_session_tokens
+from accounts.services import build_session_tokens, invalidate_session
 from audit.models import AuditEvent
 from config.asgi import application
 from notifications.constants import (
@@ -20,6 +20,7 @@ from notifications.services import EmailSendResult, create_email_request, create
 from notifications.utils import notify_new_device
 from wallet.constants import MAX_PAYMENT_CENTS, MIN_PAYMENT_CENTS
 from wallet.models import PaymentIntent, PaymentRequest, SupervisoryApproval, Transaction, TransactionReceipt, Wallet
+from wallet.services import create_funding
 
 
 CHANNEL_LAYERS = {
@@ -199,6 +200,37 @@ class NotificationSocketTests(TransactionTestCase):
             self.assertEqual(payload["type"], "system")
             self.assertEqual(payload["user"], str(self.user.id))
             self.assertIn("created_at", payload)
+            await communicator.disconnect()
+
+        async_to_sync(run_test)()
+
+    def test_websocket_receives_funding_notification_after_wallet_credit(self):
+        async def run_test():
+            communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={self.access}")
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+
+            await database_sync_to_async(create_funding)(self.user, 2500)
+            payload = await communicator.receive_json_from(timeout=2)
+            self.assertEqual(payload["title"], "Funds added")
+            self.assertEqual(payload["body"], "$25.00 was added to your wallet balance.")
+            self.assertEqual(payload["type"], "system")
+            self.assertEqual(payload["user"], str(self.user.id))
+            await communicator.disconnect()
+
+        async_to_sync(run_test)()
+
+    def test_websocket_receives_session_update_after_session_invalidation(self):
+        async def run_test():
+            communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={self.access}")
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+
+            await database_sync_to_async(invalidate_session)(self.session.session_key)
+            payload = await communicator.receive_json_from(timeout=2)
+            self.assertEqual(payload["event_type"], "session.updated")
+            self.assertEqual(payload["action"], "invalidated")
+            self.assertEqual(payload["session_key"], self.session.session_key)
             await communicator.disconnect()
 
         async_to_sync(run_test)()

@@ -15,8 +15,16 @@ const passwordHelpText = 'Use 12+ characters with upper and lower case, a number
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof AxiosError) {
-    const detail = error.response?.data?.detail
-    if (typeof detail === 'string' && detail.length > 0) return detail
+    const data = error.response?.data
+    if (data) {
+      if (typeof data.detail === 'string' && data.detail.length > 0) return data.detail
+      // DRF field-level errors
+      for (const key of ['current_password', 'new_password', 'non_field_errors']) {
+        const val = data[key]
+        if (Array.isArray(val) && val.length > 0) return val[0]
+        if (typeof val === 'string' && val.length > 0) return val
+      }
+    }
   }
   if (error instanceof Error && error.message) return error.message
   return fallback

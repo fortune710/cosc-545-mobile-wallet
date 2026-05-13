@@ -2,11 +2,13 @@ from notifications.constants import (
     SECURITY_BODY_FAILED_LOGINS,
     SECURITY_BODY_FIRST_TIME_LARGE_TXN,
     SECURITY_BODY_HIGH_FREQUENCY,
+    SECURITY_BODY_INSUFFICIENT_FUNDS,
     SECURITY_BODY_NEW_DEVICE,
     SECURITY_BODY_NEW_LOCATION,
     SECURITY_TITLE_FAILED_LOGINS,
     SECURITY_TITLE_FIRST_TIME_LARGE_TXN,
     SECURITY_TITLE_HIGH_FREQUENCY,
+    SECURITY_TITLE_INSUFFICIENT_FUNDS,
     SECURITY_TITLE_NEW_DEVICE,
     SECURITY_TITLE_NEW_LOCATION,
 )
@@ -69,3 +71,16 @@ def notify_high_frequency_transactions(user):
         notification_type=NotificationType.SECURITY,
     )
     send_security_email(user, SECURITY_TITLE_HIGH_FREQUENCY, SECURITY_BODY_HIGH_FREQUENCY)
+
+
+def notify_insufficient_funds(user, attempted_amount_cents, balance_cents):
+    message = SECURITY_BODY_INSUFFICIENT_FUNDS.format(
+        amount=attempted_amount_cents / 100,
+        balance=balance_cents / 100,
+    )
+    create_notification(
+        user=user,
+        title=SECURITY_TITLE_INSUFFICIENT_FUNDS,
+        body=message,
+        notification_type=NotificationType.SECURITY,
+    )

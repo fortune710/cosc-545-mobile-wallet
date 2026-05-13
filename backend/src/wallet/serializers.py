@@ -129,6 +129,8 @@ class TransactionSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         user = getattr(request, "user", None)
         if not obj.counterparty_user:
+            if obj.transaction_type == Transaction.Type.FUNDING:
+                return "Card Funding"
             return ""
         if user and user.role == User.Role.USER:
             return obj.counterparty_user.display_name or obj.counterparty_user.email

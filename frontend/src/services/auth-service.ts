@@ -4,15 +4,28 @@ import type {
   AuthUser,
   ChangePasswordValues,
   LoginStartResponse,
+  SessionRefreshResponse,
   LoginVerifyResponse,
   PinPresenceResponse,
   SessionRecord,
   SignUpValues,
 } from '@/lib/types'
-import { UnauthorizedError, TokenExpiredError } from '@/lib/errors/auth'
+import { ApiRequestError, InsufficientPermissionsError, UnauthorizedError, TokenExpiredError } from '@/lib/errors/auth'
 import { getDeviceFingerprint } from '@/lib/fingerprint'
 
 export const authService = {
+  sessionActivityKey: 'securewallet:last-activity-at',
+
+  markSessionActivity() {
+    localStorage.setItem(this.sessionActivityKey, String(Date.now()))
+  },
+
+  getLastSessionActivity() {
+    const raw = localStorage.getItem(this.sessionActivityKey)
+    const parsed = raw ? Number(raw) : NaN
+    return Number.isFinite(parsed) ? parsed : 0
+  },
+
   async loginStart(credentials: { email: string; password: string }): Promise<LoginStartResponse> {
     logger.info({ email: credentials.email }, 'Starting login step 1')
     try {
@@ -41,6 +54,7 @@ export const authService = {
       const { access, refresh } = response.data
       localStorage.setItem('accessToken', access)
       localStorage.setItem('refreshToken', refresh)
+      this.markSessionActivity()
       logger.info('MFA verified, tokens saved')
       return response.data
     } catch (error: any) {
@@ -73,14 +87,11 @@ export const authService = {
   async signUp(data: SignUpValues) {
     logger.info({ email: data.email }, 'Attempting registration')
     try {
-      const nameParts = data.fullName.trim().split(' ')
-      const first_name = nameParts[0]
-      const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
-
       const deviceId = await getDeviceFingerprint()
+      const displayName = `${data.firstName} ${data.lastName}`.trim()
       const response = await api.post(
         '/api/auth/register/',
-        { email: data.email, password: data.password, first_name, last_name, display_name: data.fullName },
+        { email: data.email, password: data.password, first_name: data.firstName, last_name: data.lastName, display_name: displayName },
         { headers: { 'X-DEVICE-ID': deviceId } },
       )
       logger.info({ email: data.email }, 'Registration request completed')
@@ -100,7 +111,9 @@ export const authService = {
         firstName: data.first_name,
         lastName: data.last_name,
         email: data.email,
+        phoneNumber: data.phone_number ?? '',
         emailVerified: data.email_verified,
+        mfaEnabled: data.mfa_enabled,
       }
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch user profile')
@@ -120,7 +133,24 @@ export const authService = {
     } finally {
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
+      localStorage.removeItem(this.sessionActivityKey)
       logger.info('Local session cleared')
+    }
+  },
+
+  async refreshSession(): Promise<SessionRefreshResponse> {
+    const refresh = localStorage.getItem('refreshToken')
+    if (!refresh) {
+      throw new UnauthorizedError('Session refresh token is missing.')
+    }
+    try {
+      const response = await api.post('/api/auth/session/refresh/', { refresh })
+      localStorage.setItem('accessToken', response.data.access)
+      localStorage.setItem('refreshToken', response.data.refresh)
+      return response.data
+    } catch (error: any) {
+      logger.error({ error }, 'Session refresh failed')
+      throw this.handleApiError(error)
     }
   },
 
@@ -211,11 +241,38 @@ export const authService = {
       const status = error.response.status
       const detail = error.response.data?.detail || ''
       if (status === 401) {
-        if (detail.includes('expired')) return new TokenExpiredError()
-        return new UnauthorizedError()
+        if (detail.includes('expired')) return new TokenExpiredError(detail || 'Session expired')
+        return new UnauthorizedError(detail || 'Unauthorized access')
       }
+      if (status === 403) {
+        return new InsufficientPermissionsError(detail || 'Insufficient permissions')
+      }
+      return new ApiRequestError(detail || error.message || 'Request failed', status)
     }
     return error
+  },
+
+  async updateProfile(data: { firstName?: string; lastName?: string; phoneNumber?: string }): Promise<AuthUser> {
+    logger.info('Updating user profile')
+    try {
+      const response = await api.patch('/api/auth/me/', {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        phone_number: data.phoneNumber,
+      })
+      const d = response.data
+      return {
+        firstName: d.first_name,
+        lastName: d.last_name,
+        email: d.email,
+        phoneNumber: d.phone_number ?? '',
+        emailVerified: d.email_verified,
+        mfaEnabled: d.mfa_enabled,
+      }
+    } catch (error: any) {
+      logger.error({ error }, 'Profile update failed')
+      throw this.handleApiError(error)
+    }
   },
 
   isAuthenticated() {

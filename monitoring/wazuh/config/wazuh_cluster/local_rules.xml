@@ -1,4 +1,13 @@
 <group name="securewallet,application,">
+  <rule id="100499" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="logger">securewallet.audit</field>
+    <field name="message">securewallet_audit_event</field>
+    <description>SecureWallet audit logger event observed.</description>
+    <options>no_full_log</options>
+    <group>securewallet_events,</group>
+  </rule>
+
   <rule id="100500" level="3">
     <decoded_as>json</decoded_as>
     <field name="source">securewallet</field>
@@ -8,7 +17,7 @@
   </rule>
 
   <rule id="100501" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.login.failed</field>
     <description>SecureWallet login failure detected.</description>
     <group>authentication_failed,securewallet_accounts,</group>
@@ -22,413 +31,413 @@
   </rule>
 
   <rule id="100503" level="9">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.mfa.failed</field>
     <description>SecureWallet MFA verification failure detected.</description>
     <group>authentication_failed,mfa_failed,securewallet_accounts,</group>
   </rule>
 
   <rule id="100504" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.login</field>
     <description>SecureWallet login succeeded.</description>
     <group>authentication_success,securewallet_accounts,</group>
   </rule>
 
   <rule id="100508" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.register</field>
     <description>SecureWallet account registration accepted.</description>
     <group>securewallet_accounts,account_lifecycle,</group>
   </rule>
 
   <rule id="100509" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.register.replayed</field>
     <description>SecureWallet registration replay path handled.</description>
     <group>securewallet_accounts,account_lifecycle,</group>
   </rule>
 
   <rule id="100510" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.register.failed</field>
     <description>SecureWallet registration failed validation.</description>
     <group>securewallet_accounts,validation_failure,</group>
   </rule>
 
   <rule id="100511" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.login.challenge.issued</field>
     <description>SecureWallet login challenge issued.</description>
     <group>securewallet_accounts,authentication_challenge,</group>
   </rule>
 
   <rule id="100512" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.session.refresh</field>
     <description>SecureWallet session refresh succeeded.</description>
     <group>securewallet_accounts,session_activity,</group>
   </rule>
 
   <rule id="100513" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.session.refresh.failed</field>
     <description>SecureWallet session refresh failed.</description>
     <group>securewallet_accounts,session_activity,authentication_failed,</group>
   </rule>
 
   <rule id="100514" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.session.list.viewed</field>
     <description>SecureWallet session list viewed.</description>
     <group>securewallet_accounts,session_activity,</group>
   </rule>
 
   <rule id="100515" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.logout</field>
     <description>SecureWallet logout succeeded.</description>
     <group>securewallet_accounts,session_activity,</group>
   </rule>
 
   <rule id="100516" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.logout.failed</field>
     <description>SecureWallet logout failed.</description>
     <group>securewallet_accounts,session_activity,validation_failure,</group>
   </rule>
 
   <rule id="100517" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.profile.viewed</field>
     <description>SecureWallet profile viewed.</description>
     <group>securewallet_accounts,profile_activity,</group>
   </rule>
 
   <rule id="100518" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.profile.updated</field>
     <description>SecureWallet profile updated.</description>
     <group>securewallet_accounts,profile_activity,</group>
   </rule>
 
   <rule id="100519" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.email.verify.sent</field>
     <description>SecureWallet verification email sent.</description>
     <group>securewallet_accounts,account_lifecycle,</group>
   </rule>
 
   <rule id="100520" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.email.verify.confirmed</field>
     <description>SecureWallet email verification confirmed.</description>
     <group>securewallet_accounts,account_lifecycle,</group>
   </rule>
 
   <rule id="100521" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.email.verify.failed</field>
     <description>SecureWallet email verification failed.</description>
     <group>securewallet_accounts,account_lifecycle,validation_failure,</group>
   </rule>
 
   <rule id="100522" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.mfa.enrolled</field>
     <description>SecureWallet MFA enrollment initiated.</description>
     <group>securewallet_accounts,mfa_activity,</group>
   </rule>
 
   <rule id="100523" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.mfa.enroll.failed</field>
     <description>SecureWallet MFA enrollment failed.</description>
     <group>securewallet_accounts,mfa_activity,validation_failure,</group>
   </rule>
 
   <rule id="100524" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.mfa.verified</field>
     <description>SecureWallet MFA verification succeeded.</description>
     <group>securewallet_accounts,mfa_activity,authentication_success,</group>
   </rule>
 
   <rule id="100525" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.mfa.recovery_codes.regenerated</field>
     <description>SecureWallet MFA recovery codes regenerated.</description>
     <group>securewallet_accounts,mfa_activity,</group>
   </rule>
 
   <rule id="100548" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.pin.status.viewed</field>
     <description>SecureWallet PIN status viewed.</description>
     <group>securewallet_accounts,pin_activity,</group>
   </rule>
 
   <rule id="100549" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.pin.set</field>
     <description>SecureWallet PIN set or reset.</description>
     <group>securewallet_accounts,pin_activity,</group>
   </rule>
 
   <rule id="100550" level="4">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.pin.check.success</field>
     <description>SecureWallet PIN verification succeeded.</description>
     <group>securewallet_accounts,pin_activity,authentication_success,</group>
   </rule>
 
   <rule id="100551" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.pin.check.failed</field>
     <description>SecureWallet PIN verification failed.</description>
     <group>securewallet_accounts,pin_activity,authentication_failed,</group>
   </rule>
 
   <rule id="100552" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.password.change.success</field>
     <description>SecureWallet password change succeeded.</description>
     <group>securewallet_accounts,password_activity,</group>
   </rule>
 
   <rule id="100553" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">account.password.change.failed</field>
     <description>SecureWallet password change failed.</description>
     <group>securewallet_accounts,password_activity,validation_failure,</group>
   </rule>
 
   <rule id="100505" level="6">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.initiated</field>
     <description>SecureWallet payment initiated.</description>
     <group>securewallet_wallet,payment_activity,</group>
   </rule>
 
   <rule id="100506" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.confirmed</field>
     <description>SecureWallet payment confirmed.</description>
     <group>securewallet_wallet,payment_activity,</group>
   </rule>
 
   <rule id="100526" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.balance.viewed</field>
     <description>SecureWallet wallet balance viewed.</description>
     <group>securewallet_wallet,balance_activity,</group>
   </rule>
 
   <rule id="100527" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.balance.credited</field>
     <description>SecureWallet wallet funding completed.</description>
     <group>securewallet_wallet,balance_activity,</group>
   </rule>
 
   <rule id="100528" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.balance.credit.failed</field>
     <description>SecureWallet wallet funding failed.</description>
     <group>securewallet_wallet,balance_activity,validation_failure,</group>
   </rule>
 
   <rule id="100529" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.initiation.failed</field>
     <description>SecureWallet payment initiation failed.</description>
     <group>securewallet_wallet,payment_activity,validation_failure,</group>
   </rule>
 
   <rule id="100530" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.confirm.failed</field>
     <description>SecureWallet payment confirmation failed.</description>
     <group>securewallet_wallet,payment_activity,validation_failure,</group>
   </rule>
 
   <rule id="100554" level="9">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.idempotency_mismatch</field>
     <description>SecureWallet payment idempotency mismatch detected.</description>
     <group>securewallet_wallet,payment_activity,integrity_failure,</group>
   </rule>
 
   <rule id="100555" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.insufficient_funds</field>
     <description>SecureWallet payment failed due to insufficient funds.</description>
     <group>securewallet_wallet,payment_activity,validation_failure,</group>
   </rule>
 
   <rule id="100556" level="9">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment.owner_mismatch</field>
     <description>SecureWallet payment owner mismatch detected.</description>
     <group>securewallet_wallet,payment_activity,authorization_failure,</group>
   </rule>
 
   <rule id="100531" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.list.viewed</field>
     <description>SecureWallet payment request list viewed.</description>
     <group>securewallet_wallet,payment_request_activity,</group>
   </rule>
 
   <rule id="100532" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.created</field>
     <description>SecureWallet payment request created.</description>
     <group>securewallet_wallet,payment_request_activity,</group>
   </rule>
 
   <rule id="100533" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.create.failed</field>
     <description>SecureWallet payment request creation failed.</description>
     <group>securewallet_wallet,payment_request_activity,validation_failure,</group>
   </rule>
 
   <rule id="100534" level="6">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.approved</field>
     <description>SecureWallet payment request approved.</description>
     <group>securewallet_wallet,payment_request_activity,</group>
   </rule>
 
   <rule id="100535" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.approve.failed</field>
     <description>SecureWallet payment request approval failed.</description>
     <group>securewallet_wallet,payment_request_activity,validation_failure,</group>
   </rule>
 
   <rule id="100536" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.declined</field>
     <description>SecureWallet payment request declined.</description>
     <group>securewallet_wallet,payment_request_activity,</group>
   </rule>
 
   <rule id="100537" level="8">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.decline.failed</field>
     <description>SecureWallet payment request decline failed.</description>
     <group>securewallet_wallet,payment_request_activity,validation_failure,</group>
   </rule>
 
   <rule id="100557" level="9">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.payment_request.owner_mismatch</field>
     <description>SecureWallet payment request owner mismatch detected.</description>
     <group>securewallet_wallet,payment_request_activity,authorization_failure,</group>
   </rule>
 
   <rule id="100558" level="10">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.transaction.chain_verification_failed</field>
     <description>SecureWallet wallet chain verification failed.</description>
     <group>securewallet_wallet,integrity_failure,</group>
   </rule>
 
   <rule id="100559" level="10">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.transaction.record_mismatch</field>
     <description>SecureWallet transaction record mismatch detected.</description>
     <group>securewallet_wallet,integrity_failure,</group>
   </rule>
 
   <rule id="100560" level="10">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.transaction.receipt_mismatch</field>
     <description>SecureWallet transaction receipt mismatch detected.</description>
     <group>securewallet_wallet,integrity_failure,</group>
   </rule>
 
   <rule id="100561" level="10">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.transaction.balance_mismatch</field>
     <description>SecureWallet wallet balance mismatch detected.</description>
     <group>securewallet_wallet,integrity_failure,</group>
   </rule>
 
   <rule id="100538" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.transaction_history.viewed</field>
     <description>SecureWallet transaction history viewed.</description>
     <group>securewallet_wallet,history_access,</group>
   </rule>
 
   <rule id="100539" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.supervisory_approval.list.viewed</field>
     <description>SecureWallet supervisory approvals viewed.</description>
     <group>securewallet_wallet,administrative_access,</group>
   </rule>
 
   <rule id="100540" level="6">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">wallet.supervisory_approval.created</field>
     <description>SecureWallet supervisory approval created.</description>
     <group>securewallet_wallet,administrative_access,</group>
   </rule>
 
   <rule id="100541" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">recipient.list.viewed</field>
     <description>SecureWallet recipient list viewed.</description>
     <group>securewallet_recipients,relationship_activity,</group>
   </rule>
 
   <rule id="100542" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">recipient.search.performed</field>
     <description>SecureWallet recipient search performed.</description>
     <group>securewallet_recipients,relationship_activity,</group>
   </rule>
 
   <rule id="100543" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">recipient.added</field>
     <description>SecureWallet recipient added.</description>
     <group>securewallet_recipients,relationship_activity,</group>
   </rule>
 
   <rule id="100544" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">recipient.add.failed</field>
     <description>SecureWallet recipient add failed.</description>
     <group>securewallet_recipients,relationship_activity,validation_failure,</group>
   </rule>
 
   <rule id="100545" level="5">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">recipient.removed</field>
     <description>SecureWallet recipient removed.</description>
     <group>securewallet_recipients,relationship_activity,</group>
   </rule>
 
   <rule id="100546" level="7">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">recipient.remove.failed</field>
     <description>SecureWallet recipient removal failed.</description>
     <group>securewallet_recipients,relationship_activity,validation_failure,</group>
   </rule>
 
   <rule id="100547" level="3">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="event_type">notification.list.viewed</field>
     <description>SecureWallet notifications viewed.</description>
     <group>securewallet_notifications,notification_activity,</group>
   </rule>
 
   <rule id="100507" level="9">
-    <if_sid>100500</if_sid>
+    <if_group>securewallet_events</if_group>
     <field name="security_signal">audit_integrity_failure</field>
     <description>SecureWallet audit integrity failure detected.</description>
     <group>integrity_failure,securewallet_audit,</group>

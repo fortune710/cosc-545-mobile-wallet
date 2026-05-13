@@ -27,6 +27,9 @@ export function useLoginVerifyMfa() {
         queryFn: () => authService.getUser(),
       })
       await prefetchBalance()
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.sessions,
+      })
     },
     onError: (error) => {
       logger.error({ error }, 'Login verify MFA mutation failed')

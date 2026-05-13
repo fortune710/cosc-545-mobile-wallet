@@ -53,6 +53,7 @@ from accounts.serializers import (
 )
 from accounts.services import (
     build_session_tokens,
+    refresh_session_tokens,
     ensure_mfa_seed,
     consume_recovery_code,
     invalidate_session,
@@ -340,10 +341,10 @@ class SessionRefreshView(APIView):
             refresh.check_blacklist()
             if not session or not session.is_active:
                 raise TokenError("Session expired.")
-            access = refresh.access_token
-            access["sid"] = session_key
-            access["role"] = refresh.get("role")
-            access["mfa_verified"] = True
+            if session.refresh_jti != str(refresh.get("jti")):
+                raise TokenError("Session refresh token has been rotated.")
+            refresh.blacklist()
+            access, new_refresh = refresh_session_tokens(session)
         except TokenError:
             log_event(
                 AccountEvent.SESSION_REFRESH_FAILED,
@@ -354,7 +355,7 @@ class SessionRefreshView(APIView):
             )
             return Response({"detail": "The provided token is invalid or expired."}, status=status.HTTP_401_UNAUTHORIZED)
         log_event(AccountEvent.SESSION_REFRESHED, "SUCCESS", user=session.user, request=request)
-        return Response({"access": str(access)})
+        return Response({"access": access, "refresh": new_refresh})
 
 
 class LogoutView(APIView):

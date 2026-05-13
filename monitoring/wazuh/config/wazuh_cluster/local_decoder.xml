@@ -1,4 +1,4 @@
 <decoder name="securewallet-json">
-  <prematch>"source":"securewallet"</prematch>
+  <prematch>"source"\s*:\s*"securewallet"</prematch>
   <plugin_decoder>JSON_Decoder</plugin_decoder>
 </decoder>

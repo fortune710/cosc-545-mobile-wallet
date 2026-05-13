@@ -68,6 +68,20 @@ class AuthenticationTests(APITestCase):
         self.assertIn("email", response.data)
         self.assertFalse(User.objects.filter(email="user@mailinator.com").exists())
 
+    def test_register_rejects_disposable_email_subdomain(self):
+        response = self.client.post(
+            reverse("auth-register"),
+            {
+                "email": "user@inbound.mailinator.com",
+                "password": "VeryStrongPassword123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+        self.assertFalse(User.objects.filter(email="user@inbound.mailinator.com").exists())
+
     def test_verify_email_activates_user(self):
         user = User.objects.create_user(
             email="verify@example.com",
@@ -335,6 +349,52 @@ class AuthenticationTests(APITestCase):
         user.refresh_from_db()
         self.assertTrue(user.check_password("StrongerPassword456!"))
 
+    def test_session_refresh_rotates_refresh_token_and_extends_session(self):
+        user = User.objects.create_user(
+            email="refresh-user@example.com",
+            password="VeryStrongPassword123!",
+            is_active=True,
+            mfa_enabled=True,
+            mfa_totp_seed=pyotp.random_base32(),
+        )
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=["email_verified_at", "mfa_enabled", "mfa_totp_seed"])
+
+        login_start = self.client.post(
+            reverse("auth-login-start"),
+            {"email": user.email, "password": "VeryStrongPassword123!"},
+            format="json",
+        )
+        verify_response = self.client.post(
+            reverse("auth-login-verify-mfa"),
+            {"flow_token": login_start.data["flow_token"], "mfa_code": pyotp.TOTP(user.mfa_totp_seed).now()},
+            format="json",
+            HTTP_X_DEVICE_ID="device-refresh",
+        )
+        session = SessionRecord.objects.get(user=user)
+        original_expiry = session.expires_at
+        original_refresh_jti = session.refresh_jti
+
+        refresh_response = self.client.post(
+            reverse("auth-session-refresh"),
+            {"refresh": verify_response.data["refresh"]},
+            format="json",
+        )
+
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", refresh_response.data)
+        self.assertIn("refresh", refresh_response.data)
+        session.refresh_from_db()
+        self.assertNotEqual(session.refresh_jti, original_refresh_jti)
+        self.assertGreater(session.expires_at, original_expiry)
+
+        stale_refresh_response = self.client.post(
+            reverse("auth-session-refresh"),
+            {"refresh": verify_response.data["refresh"]},
+            format="json",
+        )
+        self.assertEqual(stale_refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_profile_email_change_requires_reverification(self):
         user = User.objects.create_user(
             email="profile@example.com",
@@ -406,3 +466,36 @@ class AuthenticationTests(APITestCase):
         self.assertIn("email", response.data)
         user.refresh_from_db()
         self.assertEqual(user.email, "profile.safe@example.com")
+
+    def test_profile_update_rejects_invalid_phone_number(self):
+        user = User.objects.create_user(
+            email="profile-phone@example.com",
+            password="VeryStrongPassword123!",
+            is_active=True,
+            mfa_enabled=True,
+            mfa_totp_seed=pyotp.random_base32(),
+        )
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=["email_verified_at", "mfa_enabled", "mfa_totp_seed"])
+
+        login_start = self.client.post(
+            reverse("auth-login-start"),
+            {"email": user.email, "password": "VeryStrongPassword123!"},
+            format="json",
+        )
+        verify_response = self.client.post(
+            reverse("auth-login-verify-mfa"),
+            {"flow_token": login_start.data["flow_token"], "mfa_code": pyotp.TOTP(user.mfa_totp_seed).now()},
+            format="json",
+            HTTP_X_DEVICE_ID="device-phone-invalid",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {verify_response.data['access']}")
+
+        response = self.client.patch(
+            reverse("auth-me"),
+            {"phone_number": "555-1234"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("phone_number", response.data)

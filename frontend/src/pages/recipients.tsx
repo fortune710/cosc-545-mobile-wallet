@@ -23,6 +23,7 @@ export function RecipientsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showAddForm, setShowAddForm] = useState(false)
   const [newEmail, setNewEmail] = useState("")
+  const [selectedCandidateId, setSelectedCandidateId] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const deferredSearchQuery = useDeferredValue(searchQuery.trim())
   const deferredNewEmail = useDeferredValue(newEmail.trim())
@@ -33,15 +34,24 @@ export function RecipientsPage() {
     (candidate) => candidate.email.toLowerCase() === newEmail.trim().toLowerCase(),
   )
 
-  const handleAddRecipient = async (emailOverride?: string) => {
-    const recipientEmail = (emailOverride ?? newEmail).trim()
-    if (!recipientEmail || !recipientEmail.includes("@")) return
+  const selectedCandidate =
+    candidateResults.find((candidate) => candidate.id === selectedCandidateId) ?? null
+  const showCandidateNotFound =
+    deferredNewEmail.includes("@") &&
+    deferredNewEmail.length >= 3 &&
+    !isSearchingCandidates &&
+    !candidateExactMatch
+
+  const handleAddRecipient = async (recipientIdentifier?: string) => {
+    const resolvedIdentifier = recipientIdentifier ?? selectedCandidate?.id ?? ""
+    if (!resolvedIdentifier) return
     setIsAdding(true)
     try {
-      await recipientsService.addRecipient(recipientEmail)
+      await recipientsService.addRecipient(resolvedIdentifier)
       queryClient.invalidateQueries({ queryKey: ["recipients"] })
       toast.success("Recipient added.")
       setNewEmail("")
+      setSelectedCandidateId("")
       setShowAddForm(false)
     } catch (error: any) {
       const msg = error?.response?.data?.detail || error?.response?.data?.recipient?.[0] || "Could not add recipient."
@@ -85,26 +95,41 @@ export function RecipientsPage() {
                 type="email"
                 placeholder="Search by name or email"
                 value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddRecipient(candidateExactMatch?.email)}
+                onChange={(e) => {
+                  setNewEmail(e.target.value)
+                  setSelectedCandidateId("")
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleAddRecipient()}
                 className="h-10 flex-1 rounded-xl border-zinc-200 bg-white text-sm dark:border-zinc-700 dark:bg-zinc-800"
                 autoFocus
               />
               <Button
-                onClick={() => handleAddRecipient(candidateExactMatch?.email)}
-                disabled={isAdding || !newEmail.includes("@")}
+                onClick={() => handleAddRecipient()}
+                disabled={isAdding || !selectedCandidate}
                 className="h-10 rounded-xl px-4 text-sm"
               >
                 {isAdding ? "Adding..." : "Add"}
               </Button>
               <button
                 type="button"
-                onClick={() => { setShowAddForm(false); setNewEmail("") }}
+                onClick={() => { setShowAddForm(false); setNewEmail(""); setSelectedCandidateId("") }}
                 className="grid size-10 place-items-center rounded-xl text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
               >
                 <X className="size-4" />
               </button>
             </div>
+
+            {selectedCandidate && (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:text-emerald-300">
+                  Selected account
+                </p>
+                <p className="mt-1 text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                  {selectedCandidate.displayName}
+                </p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">{selectedCandidate.email}</p>
+              </div>
+            )}
 
             {deferredNewEmail.length >= 2 && (
               <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
@@ -115,8 +140,13 @@ export function RecipientsPage() {
                     <button
                       key={candidate.id}
                       type="button"
-                      onClick={() => handleAddRecipient(candidate.email)}
-                      className="flex w-full items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 text-left last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                      onClick={() => {
+                        setSelectedCandidateId(candidate.id)
+                        setNewEmail(candidate.email)
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 text-left last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900 ${
+                        selectedCandidateId === candidate.id ? "bg-emerald-50 dark:bg-emerald-950/20" : ""
+                      }`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -126,13 +156,21 @@ export function RecipientsPage() {
                           {candidate.email}
                         </p>
                       </div>
-                      <span className="text-xs font-medium text-primary">Add</span>
+                      <span className="text-xs font-medium text-primary">
+                        {selectedCandidateId === candidate.id ? "Selected" : "Select"}
+                      </span>
                     </button>
                   ))
                 ) : (
                   <div className="px-4 py-3 text-sm text-zinc-500">No matching users found.</div>
                 )}
               </div>
+            )}
+
+            {showCandidateNotFound && (
+              <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                No account found with this email address.
+              </p>
             )}
           </div>
         )}

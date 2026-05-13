@@ -298,16 +298,31 @@ def create_email_request(
 
 
 def emit_notification(notification: Notification) -> None:
+    payload = json.loads(JSONRenderer().render(NotificationSerializer(notification).data))
+    emit_realtime_payload(notification.user_id, payload)
+
+
+def emit_realtime_payload(user_id, payload: dict) -> None:
     channel_layer = get_channel_layer()
     if channel_layer is None:
         return
 
-    payload = json.loads(JSONRenderer().render(NotificationSerializer(notification).data))
     async_to_sync(channel_layer.group_send)(
-        notification_group_name(notification.user_id),
+        notification_group_name(user_id),
         {
             "type": "notification.message",
             "payload": payload,
+        },
+    )
+
+
+def emit_session_update(*, user_id, session_key: str, action: str) -> None:
+    emit_realtime_payload(
+        user_id,
+        {
+            "event_type": "session.updated",
+            "action": action,
+            "session_key": session_key,
         },
     )
 

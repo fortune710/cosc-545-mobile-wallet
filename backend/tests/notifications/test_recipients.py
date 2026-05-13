@@ -28,6 +28,10 @@ class RecipientTests(APITestCase):
             first_name="Admin",
             last_name="User",
         )
+        self.bob = self._create_verified_user(
+            email="bob@example.com",
+            display_name="Bob Recipient",
+        )
         self.unverified = User.objects.create_user(
             email="pending@example.com",
             password="VeryStrongPassword123!",
@@ -105,3 +109,13 @@ class RecipientTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("recipient", response.data)
+
+    def test_add_recipient_accepts_selected_user_id(self):
+        response = self.client.post(
+            reverse("recipient-list"),
+            {"recipient": str(self.bob.id)},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["email"], "bob@example.com")

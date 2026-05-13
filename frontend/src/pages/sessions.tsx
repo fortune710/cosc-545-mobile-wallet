@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getDeviceFingerprint } from '@/lib/fingerprint'
 import { useEffect, useState } from 'react'
 import type { SessionRecord } from '@/lib/types'
+import { queryKeys } from '@/lib/query-keys'
 
 function parseUserAgent(ua: string): { browser: string; os: string } {
   if (!ua) return { browser: 'Unknown browser', os: 'Unknown OS' }
@@ -83,7 +84,7 @@ function SessionCard({ session, isCurrentDevice }: { session: SessionRecord; isC
 
 export function SessionsPage() {
   const { data: sessions, isLoading } = useQuery({
-    queryKey: ['sessions'],
+    queryKey: queryKeys.sessions,
     queryFn: () => authService.getSessions(),
   })
 

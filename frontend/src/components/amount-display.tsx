@@ -65,7 +65,14 @@ export function AmountDisplay({
           <div className="flex items-center justify-center">
             <Input
               value={amountInput}
-              onChange={(event) => setAmountInput(event.target.value)}
+              onChange={(event) => {
+                const val = event.target.value
+                setAmountInput(val)
+                const parsed = Number(val)
+                if (!Number.isNaN(parsed) && parsed > 0 && parsed <= maxAmount) {
+                  onAmountChange(parsed)
+                }
+              }}
               onBlur={commitAmount}
               onKeyDown={(event) => {
                 if (event.key === "Enter") commitAmount()

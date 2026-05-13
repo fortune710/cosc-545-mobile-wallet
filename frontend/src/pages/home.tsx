@@ -273,25 +273,25 @@ export function HomePage() {
   }, [])
 
   const { totalIn, totalOut, stats } = useMemo(() => {
-    const fmt = (cents: number) =>
+    const fmt = (amount: number) =>
       new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
-      }).format(cents / 100)
+      }).format(amount)
 
-    const inCents = transactions
+    const incomingAmount = transactions
       .filter((t) => t.type === 'received')
       .reduce((s, t) => s + Math.abs(t.amount), 0)
-    const outCents = transactions
+    const outgoingAmount = transactions
       .filter((t) => t.type === 'sent')
       .reduce((s, t) => s + Math.abs(t.amount), 0)
 
     return {
-      totalIn: inCents,
-      totalOut: outCents,
-      stats: { in: fmt(inCents), out: fmt(outCents), count: transactions.length },
+      totalIn: incomingAmount,
+      totalOut: outgoingAmount,
+      stats: { in: fmt(incomingAmount), out: fmt(outgoingAmount), count: transactions.length },
     }
   }, [transactions])
 

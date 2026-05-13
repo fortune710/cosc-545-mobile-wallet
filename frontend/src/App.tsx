@@ -28,11 +28,15 @@ import { ProfilePage } from "@/pages/profile"
 import { MfaPage } from "@/pages/mfa"
 import { VerifyEmailPage } from "@/pages/verify-email"
 import { SessionsPage } from "@/pages/sessions"
+import { useNotificationRealtime } from "@/hooks/use-notification-realtime"
+import { useSessionLifecycle } from "@/hooks/use-session-lifecycle"
 
 const queryClient = new QueryClient()
 
 function AppShell() {
   const { pathname } = useLocation()
+  useNotificationRealtime()
+  useSessionLifecycle()
   const hideTabBar = ["/login", "/signup", "/verify-email", "/add-balance", "/send", "/receive", "/notifications", "/history", "/change-pin", "/change-password", "/profile", "/set-pin", "/mfa", "/sessions"].includes(pathname)
 
   return (

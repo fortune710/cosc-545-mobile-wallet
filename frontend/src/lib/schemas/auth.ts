@@ -1,6 +1,13 @@
 import { z } from "zod"
 import { config } from "@/lib/app-config"
 
+export const phoneNumberSchema = z
+  .string()
+  .trim()
+  .refine((value) => value.length === 0 || /^\+[1-9]\d{7,14}$/.test(value.replace(/[\s-]/g, "").replace(/^00/, "+")), {
+    message: "Phone number must be in international format, for example +15555550123.",
+  })
+
 export const signInSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
   password: z.string().min(1, "Password is required."),
@@ -8,7 +15,8 @@ export const signInSchema = z.object({
 })
 
 export const signUpSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters."),
+  firstName: z.string().min(1, "First name is required."),
+  lastName: z.string().min(1, "Last name is required."),
   email: z.string().email("Please enter a valid email address."),
   password: z.string().min(config.minPasswordLength, "Password must be at least 12 characters."),
 })

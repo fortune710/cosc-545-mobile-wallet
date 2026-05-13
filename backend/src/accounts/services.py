@@ -19,7 +19,7 @@ from accounts.constants import (
     SESSION_TTL,
 )
 from accounts.models import AuthFlowToken, EmailVerificationToken, MfaRecoveryCode, SessionRecord, User
-from notifications.services import send_verification_email
+from notifications.services import emit_session_update, send_verification_email
 from wallet.models import Wallet
 
 def generate_token(length=48):
@@ -116,12 +116,52 @@ def build_session_tokens(user: User, device_id: str = "", ip_address: str | None
     access["sid"] = session.session_key
     access["role"] = user.role
     access["mfa_verified"] = True
+    transaction.on_commit(
+        lambda user_id=user.id, session_key=session.session_key: emit_session_update(
+            user_id=user_id,
+            session_key=session_key,
+            action="created",
+        )
+    )
     return session, str(access), str(refresh)
 
 
+def refresh_session_tokens(session: SessionRecord):
+    refresh = RefreshToken.for_user(session.user)
+    refresh["sid"] = session.session_key
+    refresh["role"] = session.user.role
+    refresh["mfa_verified"] = True
+
+    access = refresh.access_token
+    access["sid"] = session.session_key
+    access["role"] = session.user.role
+    access["mfa_verified"] = True
+
+    session.refresh_jti = str(refresh["jti"])
+    session.expires_at = timezone.now() + SESSION_TTL
+    session.save(update_fields=["refresh_jti", "expires_at"])
+    transaction.on_commit(
+        lambda user_id=session.user_id, session_key=session.session_key: emit_session_update(
+            user_id=user_id,
+            session_key=session_key,
+            action="refreshed",
+        )
+    )
+    return str(access), str(refresh)
+
+
 def invalidate_session(session_key: str):
-    SessionRecord.objects.filter(session_key=session_key, invalidated_at__isnull=True).update(
-        invalidated_at=timezone.now()
+    session = SessionRecord.objects.filter(session_key=session_key, invalidated_at__isnull=True).first()
+    if not session:
+        return
+    session.invalidated_at = timezone.now()
+    session.save(update_fields=["invalidated_at"])
+    transaction.on_commit(
+        lambda user_id=session.user_id, session_key=session.session_key: emit_session_update(
+            user_id=user_id,
+            session_key=session_key,
+            action="invalidated",
+        )
     )
 
 
